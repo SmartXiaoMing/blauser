@@ -83,8 +83,14 @@ class UrlListDialog(
 
         override fun onBindViewHolder(holder: VH, position: Int) {
             val row = rows[position]
-            holder.tvTitle.text = row.title.ifBlank { row.url }
-            holder.tvSubtitle.text = row.badge?.let { "$it · ${row.url}" } ?: row.url
+            val title = row.title.ifBlank { row.url }
+            holder.tvTitle.text = title
+
+            // 标题就是网址时（没抓到标题的页面，比如加载失败的那种）不要再把网址
+            // 重复显示一遍当副标题；只有角标（「已打开」）还值得占一行
+            val subtitle = row.badge?.let { "$it · ${row.url}" } ?: row.url
+            holder.tvSubtitle.isVisible = subtitle != title
+            holder.tvSubtitle.text = subtitle
 
             holder.itemView.setOnClickListener {
                 onSelect(row.url)

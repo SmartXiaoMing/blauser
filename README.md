@@ -12,6 +12,17 @@ Blauser 反过来做：**按 PC 的宽度渲染，再整体缩放贴合手机屏
 同时伪装 `window.screen.width`，让响应式站点主动吐出 PC 布局。
 于是后台管理系统、老论坛、文档站、政府网站这些「只在电脑上能看」的页面，手机上也能用了。
 
+<p align="center">
+  <img src="docs/screenshots/pc-mode.png" width="23%" alt="PC 页面适配">
+  <img src="docs/screenshots/new-tab.png" width="23%" alt="新标签页">
+  <img src="docs/screenshots/menu.png" width="23%" alt="悬浮球菜单">
+  <img src="docs/screenshots/dark-mode.png" width="23%" alt="深色模式">
+</p>
+
+<p align="center">
+  <sub>左起：PC 页面缩放 · 新标签页 · 悬浮球菜单 · 深色模式</sub>
+</p>
+
 ---
 
 ## 它和普通手机浏览器有什么不同
@@ -83,8 +94,10 @@ Blauser 让页面按 1280px（或你指定的宽度）正常排版 —— 该并
 
 - **无痕标签**：独立存储，cookie / localStorage / 缓存与普通标签**完全隔离**，
   关闭后整份数据销毁。也不写浏览历史。
-  依赖 WebView 的多 profile 能力，**需要 Android 9 及以上**；
-  老设备上不支持就不提供这个入口（而不是做个假的）。
+  依赖 WebView 的多 profile 能力，条件有两个：**Android 9 及以上**，
+  **且 WebView 本身支持多 profile**（较新版本的 WebView）。
+  两者缺一就不显示这个入口 —— 而不是做个「不记历史但 cookie 照样共享」的假的。
+  实际判断走 `WebViewFeature.isFeatureSupported(MULTI_PROFILE)`，两个条件都包含。
 - **浏览历史**：记录访问过的页面，同一网址只留一条并置顶，上限 500 条，
   可一键清空（清空有二次确认）。无痕标签不写历史。
 
@@ -104,6 +117,18 @@ Blauser 让页面按 1280px（或你指定的宽度）正常排版 —— 该并
 ### 系统集成
 
 - 注册为系统默认浏览器，其他 App 点链接可以直接用这个打开（会开新标签，不打断当前页面）
+
+### 更多截图
+
+<p align="center">
+  <img src="docs/screenshots/settings.png" width="23%" alt="设置面板">
+  <img src="docs/screenshots/history.png" width="23%" alt="历史记录">
+  <img src="docs/screenshots/error-page.png" width="23%" alt="自定义错误页">
+</p>
+
+<p align="center">
+  <sub>设置面板 · 历史记录 · 自定义错误页（按错误码给出中文原因，替代系统那张 “net::ERR_…”）</sub>
+</p>
 
 ---
 
@@ -161,8 +186,9 @@ Gradle 用仓库自带的 wrapper 即可，不需要另装。
 
 **其它限制**：
 
-- **无痕标签需要 Android 9 及以上**。低版本没有 WebView 多 profile 能力，
-  做不出真隔离 —— 与其做个「假装无痕」，不如不提供
+- **无痕标签需要 Android 9 及以上，且 WebView 支持多 profile**。两个条件缺一都做不出
+  真隔离（WebView 的多 profile 是随 WebView 版本走的，跟系统版本不完全同步）——
+  与其做个「假装无痕」，不如不提供这个入口
 - 滚动位置是**尽力而为**：页面重载后要等排版稳定（图片撑开高度、懒加载补内容），
   恢复得太早会被后续布局吃掉。代码里是固定延迟 300ms，极端页面可能不准
 - 不接受无效证书，也不提供「继续访问」—— 接受无效证书等于放弃中间人攻击防护

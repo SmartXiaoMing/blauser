@@ -68,6 +68,20 @@ android {
         viewBinding true
     }
 
+    /*
+     * 产物命名：blauser-<版本号>.apk / blauser-<版本号>-debug.apk
+     *
+     * 默认的 app-release.apk 没法区分版本，而 GitHub Release 上的附件名
+     * 就是用户下载到的文件名 —— 总不能让人下到一个叫 app-release 的东西。
+     */
+    applicationVariants.all { variant ->
+        variant.outputs.all { output ->
+            outputFileName = variant.buildType.isDebuggable()
+                ? "blauser-${variant.versionName}-debug.apk"
+                : "blauser-${variant.versionName}.apk"
+        }
+    }
+
     lint {
         // 有 error 就中断构建。当前已清零，别让它再涨回去。
         abortOnError true

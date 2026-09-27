@@ -44,6 +44,8 @@ object Incognito {
     val isSupported: Boolean
         get() = runCatching {
             WebViewFeature.isFeatureSupported(WebViewFeature.MULTI_PROFILE)
+        }.onFailure {
+            android.util.Log.w("Blauser", "无痕特性探测失败，按不支持处理", it)
         }.getOrDefault(false)
 
     /**
