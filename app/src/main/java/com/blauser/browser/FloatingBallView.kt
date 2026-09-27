@@ -101,6 +101,14 @@ class FloatingBallView(
         val visibleWhen: (() -> Boolean)? = null
     )
 
+    /**
+     * 这几项都要求「当前有一个真正的网页」。
+     *
+     * 空白标签（新标签页）上没有网址，点了只能得到一句 toast 说「当前没有可…的页面」——
+     * 与其让人点进去才发现，不如和「后退 / 前进」一样直接置灰。
+     */
+    private fun needsPage(sp: StateProvider): Boolean = sp.currentUrl() != null
+
     private val menuRows = listOf(
         MenuRow(MenuAction.BACK, R.drawable.ic_back, R.string.menu_back,
             enabledWhen = { it.canGoBack() }),
@@ -112,6 +120,7 @@ class FloatingBallView(
             visibleWhen = { Incognito.isSupported }),
         MenuRow(
             MenuAction.TOGGLE_BOOKMARK, R.drawable.ic_bookmark, R.string.menu_bookmark_add,
+            enabledWhen = { needsPage(it) },
             dynamic = { sp ->
                 if (sp.isCurrentBookmarked()) {
                     R.drawable.ic_bookmark_filled to R.string.menu_bookmark_remove
@@ -123,11 +132,13 @@ class FloatingBallView(
         MenuRow(MenuAction.BOOKMARKS, R.drawable.ic_bookmarks, R.string.menu_bookmarks),
         MenuRow(MenuAction.HISTORY, R.drawable.ic_history, R.string.menu_history),
         MenuRow(MenuAction.COPY_URL, R.drawable.ic_copy, R.string.menu_copy_url,
-            dividerBefore = true),
-        MenuRow(MenuAction.SHARE, R.drawable.ic_share, R.string.menu_share),
-        MenuRow(MenuAction.ADD_SHORTCUT, R.drawable.ic_add_to_home, R.string.menu_add_shortcut),
+            dividerBefore = true, enabledWhen = { needsPage(it) }),
+        MenuRow(MenuAction.SHARE, R.drawable.ic_share, R.string.menu_share,
+            enabledWhen = { needsPage(it) }),
+        MenuRow(MenuAction.ADD_SHORTCUT, R.drawable.ic_add_to_home, R.string.menu_add_shortcut,
+            enabledWhen = { needsPage(it) }),
         MenuRow(MenuAction.SITE_SETTINGS, R.drawable.ic_settings, R.string.menu_site_settings,
-            dividerBefore = true),
+            dividerBefore = true, enabledWhen = { needsPage(it) }),
         MenuRow(MenuAction.SETTINGS, R.drawable.ic_settings, R.string.menu_settings),
         MenuRow(MenuAction.DEVTOOLS, R.drawable.ic_devtools, R.string.menu_devtools),
     )
@@ -151,6 +162,15 @@ class FloatingBallView(
      * 「这个标签是无痕的」这个信息的地方 —— 换个颜色，一眼可见。
      */
     private var incognito = false
+
+    /**
+     * 顶部安全距离（刘海 / 挖孔的高度，px）。
+     *
+     * 窗口开了 `LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES`，内容会一直铺到屏幕顶端
+     * —— 网页该这样，但悬浮球不行：贴到最上面就整颗画进刘海里，那里物理上没有像素，
+     * 表现就是「球不见了，但盲拖还能拖出来」。所以球的 y 下限卡在这个值上。
+     */
+    private var safeTop = 0
 
     /** 空闲后淡出，避免一直挡着网页内容 */
     private val fadeOut = Runnable {
@@ -187,12 +207,24 @@ class FloatingBallView(
 
     private val layoutClampListener = View.OnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
         val nx = x.coerceIn(0f, maxX())
-        val ny = y.coerceIn(0f, maxY())
+        val ny = y.coerceIn(minY(), maxY())
         // 只在真的越界时才赋值，避免自己触发自己的布局回调
         if (nx != x) x = nx
         if (ny != y) y = ny
         updateBallShape()
     }
+
+    /** 刘海高度变化（旋转、换屏、进入分屏）时调用 */
+    fun setSafeTop(px: Int) {
+        if (safeTop == px) return
+        safeTop = px
+        // 已经在刘海里的球要拉回来，否则它会一直看不见
+        val ny = y.coerceIn(minY(), maxY())
+        if (ny != y) y = ny
+    }
+
+    /** 球能停的最上面。父容器太矮时退化成 0，别把 coerceIn 的区间搞反 */
+    private fun minY(): Float = safeTop.toFloat().coerceAtMost(maxY())
 
     /** 贴左边缘用右侧圆弧的形状，贴右边缘反之 */
     private fun updateBallShape() {
@@ -245,7 +277,7 @@ class FloatingBallView(
                 if (!dragging && hypot(dx, dy) > touchSlop) dragging = true
                 if (dragging) {
                     x = (anchorX + dx).coerceIn(0f, maxX())
-                    y = (anchorY + dy).coerceIn(0f, maxY())
+                    y = (anchorY + dy).coerceIn(minY(), maxY())
                     updateBallShape()
                 }
                 return true
@@ -418,7 +450,8 @@ class FloatingBallView(
             y = maxY() * 0.6f
         } else {
             x = saved.first.coerceIn(0f, maxX())
-            y = saved.second.coerceIn(0f, maxY())
+            // 上次保存的位置可能来自没有刘海的横屏（或反过来），这里重新钳一次
+            y = saved.second.coerceIn(minY(), maxY())
         }
         updateBallShape()
     }

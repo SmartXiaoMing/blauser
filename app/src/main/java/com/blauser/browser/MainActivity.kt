@@ -73,6 +73,9 @@ class MainActivity : AppCompatActivity(),
     /** 最近一次加载失败的地址，供错误页的「重试」用 */
     private var lastErrorUrl: String = ""
 
+    /** 刘海/挖孔的高度，悬浮球不能进这块区域。inset 回调里更新 */
+    private var ballSafeTop: Int = 0
+
     /**
      * 本标签是不是无痕标签。跟启动 Intent 走，所以配置变化重建后依然正确。
      *
@@ -269,6 +272,12 @@ class MainActivity : AppCompatActivity(),
             )
             // 顶部刻意留 0：状态栏已隐藏，内容要一直铺到屏幕顶端
             v.setPadding(bars.left, 0, bars.right, bars.bottom)
+
+            // 但悬浮球不能铺进去 —— 刘海那块物理上没有像素，球画在那里就等于消失。
+            // 只取 displayCutout 而不是 systemBars：状态栏是隐藏的，不该占球的活动范围。
+            val cutoutTop = insets.getInsets(WindowInsetsCompat.Type.displayCutout()).top
+            ballSafeTop = cutoutTop
+            ball?.setSafeTop(cutoutTop)
 
             // 键盘高度垫给新标签页的内容。
             // edge-to-edge 下 windowSoftInputMode=adjustResize 已经不起作用了
@@ -766,6 +775,9 @@ class MainActivity : AppCompatActivity(),
         ball = FloatingBallView(this, binding.rootLayout, this, this).also {
             // 无痕时换个颜色 —— 悬浮球是唯一能承载这个信息的地方
             it.setIncognito(isIncognito)
+            // inset 回调通常早于这里（球是 onCreate 之后才加的），但顺序不保证，
+            // 所以两处都设一遍；setSafeTop 是幂等的
+            it.setSafeTop(ballSafeTop)
             it.attach()
         }
     }

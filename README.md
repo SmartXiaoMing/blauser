@@ -2,7 +2,7 @@
 
 > 让 PC 网页在手机上真正能用。
 
-**📦 [下载 APK](https://github.com/SmartXiaoMing/blauser/releases/latest)** · 1.8 MB · 需要 Android 5.0+ · [MIT 协议](LICENSE)
+**📦 [下载 APK](https://github.com/SmartXiaoMing/blauser/releases/latest)** · 1.8 MB · Android 5.0+ · [MIT 协议](LICENSE)
 
 一个 Android 浏览器，只专注做一件事：**那些没有做移动端适配的网页，在手机上也得好用。**
 
@@ -83,7 +83,9 @@ Blauser 让页面按 1280px（或你指定的宽度）正常排版 —— 该并
   - 短按展开菜单：后退 / 前进 / 刷新 / 首页 / 新建无痕标签 / 收藏本页 / 收藏夹 /
     历史记录 / 复制链接 / 分享 / 添加到桌面 / 本站设置 / 全局设置 / 审查元素
   - 长按直达设置
-  - 无历史时「后退 / 前进」自动置灰；已收藏时「收藏本页」变成「取消收藏」
+  - 无历史时「后退 / 前进」置灰；空白标签上「收藏 / 复制链接 / 分享 /
+    添加到桌面 / 本站设置」置灰 —— 这些都要有网页才有意义
+  - 已收藏时「收藏本页」变成「取消收藏」
   - 设备不支持无痕（见下）时，那一项**不显示**而不是置灰 ——
     摆一个永远点不动的灰色项只会让人困惑
 - **新标签页 / 首页**（定制页面）：
@@ -138,7 +140,7 @@ Blauser 让页面按 1280px（或你指定的宽度）正常排版 —— 该并
 
 ### 直接装 APK
 
-**[下载 blauser-1.0.0.apk](https://github.com/SmartXiaoMing/blauser/releases/latest)** · 1.8 MB
+**[到 Releases 页下载最新版](https://github.com/SmartXiaoMing/blauser/releases/latest)** · 1.8 MB
 
 - 需要 Android 5.0（API 21）及以上
 - 没有上架任何应用商店，首次安装需在「设置 → 安全」里允许安装未知来源的应用
@@ -152,8 +154,8 @@ Blauser 让页面按 1280px（或你指定的宽度）正常排版 —— 该并
 git clone https://github.com/SmartXiaoMing/blauser.git
 cd blauser
 ./gradlew assembleRelease
-# 产物：app/build/outputs/apk/release/blauser-1.0.0.apk
-adb install -r app/build/outputs/apk/release/blauser-1.0.0.apk
+# 产物：app/build/outputs/apk/release/blauser-<版本号>.apk
+adb install -r app/build/outputs/apk/release/blauser-1.0.1.apk
 ```
 
 **环境要求**：JDK 17+、Android SDK（`local.properties` 里写 `sdk.dir=...`）。
