@@ -2,6 +2,8 @@
 
 > 让 PC 网页在手机上真正能用。
 
+**📦 [下载 APK](https://github.com/SmartXiaoMing/blauser/releases/latest)** · 1.8 MB · 需要 Android 5.0+ · [MIT 协议](LICENSE)
+
 一个 Android 浏览器，只专注做一件事：**那些没有做移动端适配的网页，在手机上也得好用。**
 
 手机上打开这类网站，体验通常是灾难 —— 字小到要放大镜、排版整个错位、
@@ -134,19 +136,28 @@ Blauser 让页面按 1280px（或你指定的宽度）正常排版 —— 该并
 
 ## 安装
 
-没有上架任何应用商店，自行构建安装：
+### 直接装 APK
+
+**[下载 blauser-1.0.0.apk](https://github.com/SmartXiaoMing/blauser/releases/latest)** · 1.8 MB
+
+- 需要 Android 5.0（API 21）及以上
+- 没有上架任何应用商店，首次安装需在「设置 → 安全」里允许安装未知来源的应用
+- Release 页面里附有 APK 的签名 SHA-256，可自行核对
+
+装好后可以去系统「设置 → 应用 → 默认应用 → 浏览器应用」里把它设成默认浏览器。
+
+### 自行构建
 
 ```bash
 git clone https://github.com/SmartXiaoMing/blauser.git
 cd blauser
-./gradlew assembleDebug
-adb install -r app/build/outputs/apk/debug/app-debug.apk
+./gradlew assembleRelease
+# 产物：app/build/outputs/apk/release/blauser-1.0.0.apk
+adb install -r app/build/outputs/apk/release/blauser-1.0.0.apk
 ```
 
 **环境要求**：JDK 17+、Android SDK（`local.properties` 里写 `sdk.dir=...`）。
 Gradle 用仓库自带的 wrapper 即可，不需要另装。
-
-装好后可以去系统「设置 → 应用 → 默认应用 → 浏览器应用」里把它设成默认浏览器。
 
 ---
 
