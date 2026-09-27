@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- 悬浮球下拉菜单的单行：尽量紧凑，只留图标 + 文字 -->
+    <style name="FloatingMenuItem">
+        <!-- 必须是 wrap_content。若用 match_parent，在 PopupWindow 的 AT_MOST 测量下
+             子 View 会撑满可用宽度，把整个菜单拖到屏幕那么宽。
+             行背景是透明的，所以各行宽度不一致也看不出来。 -->
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">38dp</item>
+        <item name="android:orientation">horizontal</item>
+        <item name="android:gravity">center_vertical</item>
+        <item name="android:paddingStart">10dp</item>
+        <item name="android:paddingEnd">14dp</item>
+        <item name="android:background">?attr/selectableItemBackground</item>
+    </style>
+
+    <style name="FloatingMenuText">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginStart">9dp</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:maxLines">1</item>
+    </style>
+
+    <!-- 菜单里的图标尺寸 -->
+    <style name="FloatingMenuIcon">
+        <item name="android:layout_width">18dp</item>
+        <item name="android:layout_height">18dp</item>
+        <item name="android:scaleType">fitCenter</item>
+    </style>
+
+    <!-- 设置页小节标题 -->
+    <style name="SettingsLabel">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">18dp</item>
+        <item name="android:layout_marginBottom">6dp</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/text_primary</item>
+    </style>
+
+    <style name="SettingsHint">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">4dp</item>
+        <item name="android:textSize">11sp</item>
+        <item name="android:textColor">@color/text_tertiary</item>
+        <item name="android:lineSpacingExtra">2dp</item>
+    </style>
+
+</resources>

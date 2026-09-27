@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  悬浮球下拉菜单的容器。具体菜单项由 FloatingBallView 按 MENU_ROWS 动态生成，
+  这样增删菜单项只改一处，不用维护一堆几乎一样的 XML 块。
+
+  宽度取 wrap_content —— 由最宽的一行决定，整体尽量紧凑。
+  注意里面**不能**出现 layout_width="match_parent" 的子 View：PopupWindow 以
+  AT_MOST 测量，match_parent 会撑满可用宽度，把整个菜单拖到屏幕那么宽。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/menuContainer"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/bg_floating_menu"
+    android:paddingTop="3dp"
+    android:paddingBottom="3dp" />

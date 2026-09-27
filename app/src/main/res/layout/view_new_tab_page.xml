@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  新标签页 / 默认首页。
+  包含：地址输入框 + 当前打开的标签页 + 收藏的网址。
+
+  这是盖在 WebView 之上的覆盖层，所以必须有不透明底色（@color/surface），
+  否则会透出下面的网页。
+-->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/newTabScroll"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/surface"
+    android:fillViewport="true"
+    android:visibility="gone">
+
+    <LinearLayout
+        android:id="@+id/newTabContent"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="20dp"
+        android:paddingEnd="20dp"
+        android:paddingTop="28dp"
+        android:paddingBottom="24dp">
+
+        <!-- ===== 品牌区 ===== -->
+        <ImageView
+            android:layout_width="76dp"
+            android:layout_height="76dp"
+            android:layout_gravity="center_horizontal"
+            android:src="@drawable/ic_launcher_foreground"
+            android:contentDescription="@string/logo_desc" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:gravity="center"
+            android:text="@string/app_name"
+            android:textSize="17sp"
+            android:textStyle="bold"
+            android:textColor="@color/text_primary" />
+
+        <!-- ===== 地址输入 ===== -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <EditText
+                android:id="@+id/etNewTabUrl"
+                android:layout_width="0dp"
+                android:layout_height="44dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_url_bar"
+                android:paddingStart="14dp"
+                android:paddingEnd="14dp"
+                android:singleLine="true"
+                android:imeOptions="actionGo"
+                android:inputType="textUri"
+                android:textSize="13sp"
+                android:importantForAutofill="no"
+                android:hint="@string/hint_url" />
+
+            <TextView
+                android:id="@+id/btnNewTabGo"
+                android:layout_width="wrap_content"
+                android:layout_height="44dp"
+                android:layout_marginStart="8dp"
+                android:paddingStart="18dp"
+                android:paddingEnd="18dp"
+                android:gravity="center"
+                android:text="@string/action_go"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:textColor="@color/on_brand"
+                android:background="@drawable/bg_tab_active" />
+        </LinearLayout>
+
+        <!-- ===== 打开的标签页 ===== -->
+        <TextView
+            android:id="@+id/tvOpenTabsHeader"
+            style="@style/SettingsLabel"
+            android:text="@string/section_open_tabs" />
+
+        <LinearLayout
+            android:id="@+id/openTabsContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
+
+        <!-- ===== 收藏 ===== -->
+        <TextView
+            android:id="@+id/tvBookmarksHeader"
+            style="@style/SettingsLabel"
+            android:text="@string/section_bookmarks" />
+
+        <LinearLayout
+            android:id="@+id/bookmarksContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
+
+        <TextView
+            android:id="@+id/tvNewTabEmpty"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:textSize="12sp"
+            android:textColor="@color/text_quaternary"
+            android:text="@string/empty_bookmarks_hint"
+            android:visibility="gone" />
+
+    </LinearLayout>
+
+</ScrollView>

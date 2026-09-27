@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  All user-visible strings.
+
+  Two layers:
+   - The "text" sections are pure display text; changing wording or adding a
+     language only touches this file
+   - Entries with %1$s are format strings. Kotlin always calls
+     getString(R.string.x, arg) (never string concatenation, which would make
+     word-order changes impossible)
+-->
+<resources>
+
+    <string name="app_name">Blauser</string>
+
+    <!-- ==================== Common actions ==================== -->
+    <string name="action_go">Go</string>
+    <string name="action_save">Save</string>
+    <string name="action_clear">Clear</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_close">Close</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_retry">Retry</string>
+    <string name="action_reload_now">Reload now</string>
+    <string name="action_later">Later</string>
+    <string name="action_clear_all">Clear all</string>
+
+    <!-- ==================== New tab page ==================== -->
+    <string name="hint_url">Enter a URL or search</string>
+    <string name="section_open_tabs">Open tabs</string>
+    <string name="section_bookmarks">Bookmarked sites</string>
+    <string name="badge_current">Current</string>
+    <string name="badge_opened">Opened</string>
+    <string name="row_blank_page">Blank page</string>
+    <string name="row_new_tab">New tab</string>
+    <string name="logo_desc">App icon</string>
+    <string name="empty_bookmarks_hint">No bookmarks yet. Tap the floating ball → \"Bookmark this page\" to add one.</string>
+
+    <!-- ==================== Floating ball menu ==================== -->
+    <string name="ball_desc">Browser menu</string>
+    <string name="menu_back">Back</string>
+    <string name="menu_forward">Forward</string>
+    <string name="menu_refresh">Refresh</string>
+    <string name="menu_home">Home</string>
+    <string name="menu_bookmark_add">Bookmark this page</string>
+    <string name="menu_bookmark_remove">Remove bookmark</string>
+    <string name="menu_bookmarks">Bookmarks</string>
+    <string name="menu_copy_url">Copy link</string>
+    <string name="menu_share">Share</string>
+    <string name="menu_add_shortcut">Add to home screen</string>
+    <string name="menu_site_settings">Site settings</string>
+    <string name="menu_settings">Global settings</string>
+    <string name="menu_devtools">Inspect element</string>
+    <string name="menu_history">History</string>
+    <string name="menu_incognito">New incognito tab</string>
+
+    <!-- ==================== History ==================== -->
+    <string name="history_title">History</string>
+    <string name="history_empty">No history</string>
+    <string name="history_clear_title">Clear history</string>
+    <string name="history_clear_message">This deletes all browsing history. It can\'t be undone.</string>
+    <string name="history_cleared">History cleared</string>
+    <string name="toast_history_empty">No browsing history yet</string>
+
+    <!-- ==================== Incognito tabs ==================== -->
+    <string name="badge_incognito">Incognito</string>
+    <string name="badge_current_incognito">Current · Incognito</string>
+    <string name="toast_incognito_unsupported">Incognito tabs require Android 9 or later</string>
+
+    <!-- ==================== Error page ==================== -->
+    <string name="error_icon_desc">Something went wrong</string>
+    <string name="error_title_load">Can\'t open page</string>
+    <string name="error_title_ssl">Secure connection failed</string>
+    <string name="error_ssl_reason">This site\'s certificate could not be verified, so the connection was cut off. It may have expired, it may not match the domain, or the network may be intercepted.</string>
+    <!-- Error code and raw description, e.g. "error code -2 · net::ERR_INTERNET_DISCONNECTED" -->
+    <string name="error_detail">Error %1$d</string>
+    <string name="error_detail_with_desc">Error %1$d · %2$s</string>
+    <string name="error_ssl_detail">Certificate problem · %1$d</string>
+
+    <!-- WebView error codes → plain language -->
+    <string name="err_host_lookup">Site not found. The domain may be misspelled, or this network can\'t resolve it.</string>
+    <string name="err_connect">Can\'t reach the server. It may be temporarily unavailable, or blocked by your network.</string>
+    <string name="err_timeout">Connection timed out. The site is responding too slowly, or the network is unreachable.</string>
+    <string name="err_bad_url">The URL is malformed.</string>
+    <string name="err_unsupported_scheme">This protocol isn\'t supported.</string>
+    <string name="err_too_many_requests">Too many requests. Try again later.</string>
+    <string name="err_redirect_loop">Too many redirects — the page is stuck in a loop.</string>
+    <string name="err_file_not_found">File not found.</string>
+    <string name="err_file">Error reading the file.</string>
+    <string name="err_io">Error reading or writing data.</string>
+    <string name="err_proxy_auth">The proxy server requires authentication.</string>
+    <string name="err_auth">The server requires authentication.</string>
+    <string name="err_unsafe_resource">This resource was blocked by a security policy.</string>
+    <string name="err_unknown">An unknown error occurred.</string>
+
+    <!-- ==================== Global settings ==================== -->
+    <string name="settings_title">Global settings</string>
+    <string name="settings_width">Page width (resolution)</string>
+    <string name="settings_width_hint">Controls the page\'s virtual width and spoofs window.screen.width to match.\n\n· Auto: if the page declares width=device-width, leave it alone; everything else is rendered at 1280 as a PC page and scaled. This is the everyday choice.\n· Follow phone: no intervention at all.\n· A fixed value such as 1280: always render at that width. Responsive sites then get screen.width=1280 and output a PC layout, which is scaled down to fit the phone screen.</string>
+    <string name="settings_ua">UserAgent</string>
+    <string name="settings_ua_custom_hint">Pick \"Custom…\" to enter a UA here</string>
+    <string name="settings_orientation">Screen orientation</string>
+    <string name="settings_language">Language</string>
+    <string name="settings_language_hint">Such as zh-CN, en-US. Leave blank to follow the system</string>
+    <string name="settings_global_hint">These are the defaults for all sites. To apply them to one site only, use \"Site settings\" in the floating ball menu. Long-press the floating ball to jump straight here.</string>
+
+    <!-- Page width presets -->
+    <string name="width_auto">Auto (recommended)</string>
+    <string name="width_follow_device">Follow phone</string>
+    <string name="width_1280">1280 · PC</string>
+    <string name="width_1024">1024 · Small PC</string>
+    <string name="width_800">800 · Tablet</string>
+    <string name="width_768">768 · Tablet</string>
+
+    <!-- Screen orientation presets -->
+    <string name="orientation_system">Follow system</string>
+    <string name="orientation_portrait">Portrait</string>
+    <string name="orientation_landscape">Landscape</string>
+
+    <!-- UserAgent presets -->
+    <string name="ua_android">Android phone</string>
+    <string name="ua_desktop">Desktop Chrome</string>
+    <string name="ua_iphone">iPhone Safari</string>
+    <string name="ua_custom">Custom…</string>
+
+    <!-- ==================== Per-site settings ==================== -->
+    <string name="site_settings_title">Site settings · %1$s</string>
+    <string name="site_preset">Quick presets</string>
+    <string name="site_preset_desktop">Desktop mode</string>
+    <string name="site_preset_mobile">Mobile mode</string>
+    <string name="site_preset_hint">Desktop mode = desktop UserAgent + render at 1280 wide; mobile mode = phone UserAgent + follow the phone screen.</string>
+    <string name="site_inherit">Use global</string>
+    <string name="site_language_hint">Applies to both the Accept-Language HTTP header and the page\'s navigator.language.</string>
+    <string name="site_inherit_hint">Entries left blank or set to \"Use global\" use the values from global settings.</string>
+
+    <!-- ==================== Reload confirmation ==================== -->
+    <string name="reload_title">Reload needed</string>
+    <string name="reload_message_site">Width / UserAgent / language changes take effect only after the page reloads. Reload now?</string>
+    <string name="reload_message_global">Width / UserAgent / language changed. Reload for the change to take effect.\n\nReloading loses the current scroll position and any form input. Reload now?</string>
+    <string name="reload_deferred">Changes will take effect the next time the page opens</string>
+
+    <!-- ==================== Bookmarks ==================== -->
+    <string name="bookmarks_title">Bookmarks</string>
+    <string name="bookmarks_empty">No bookmarks</string>
+
+    <!-- ==================== Share ==================== -->
+    <string name="share_chooser">Share with</string>
+
+    <!-- ==================== Download ==================== -->
+    <string name="download_started">Download started: %1$s</string>
+    <string name="download_failed">Download failed</string>
+    <string name="download_unsupported">This kind of link (%1$s) can\'t be downloaded yet</string>
+    <string name="download_permission_needed">Storage permission is needed to save to the Downloads folder</string>
+
+    <!-- ==================== Permissions ==================== -->
+    <string name="permission_denied">Permission denied — the site can\'t use this feature</string>
+
+    <!-- ==================== Toast ==================== -->
+    <string name="toast_no_page_to_bookmark">There\'s no page to bookmark</string>
+    <string name="toast_bookmarked">Bookmarked: %1$s</string>
+    <string name="toast_unbookmarked">Bookmark removed</string>
+    <string name="toast_no_url_to_copy">There\'s no link to copy</string>
+    <string name="toast_copied">Link copied</string>
+    <string name="toast_no_url_to_share">There\'s no link to share</string>
+    <string name="toast_no_page_for_shortcut">There\'s no page to add to the home screen</string>
+    <string name="toast_shortcut_unsupported">This launcher doesn\'t support website shortcuts</string>
+    <string name="toast_site_settings_no_host">This page has no URL yet, so site settings can\'t be applied</string>
+    <string name="toast_site_settings_cleared">Cleared the settings for %1$s</string>
+    <plurals name="toast_max_tabs">
+        <item quantity="one">You can have at most %1$d tab open. Close it first.</item>
+        <item quantity="other">You can have at most %1$d tabs open. Close some first.</item>
+    </plurals>
+    <string name="toast_render_gone">The system reclaimed memory, so the page was reloaded (its state could not be kept this time)</string>
+    <string name="toast_no_app_for_scheme">No app can handle %1$s://</string>
+    <string name="toast_app_not_installed">The matching app isn\'t installed (%1$s)</string>
+    <string name="toast_bookmarks_empty">Your bookmarks are empty. Save a few pages first ⭐</string>
+    <string name="toast_deleted">Deleted</string>
+    <string name="toast_copied_clipboard">Copied to clipboard</string>
+    <!-- Shown when an external app jump is blocked: jumps not triggered by a user tap are not allowed through -->
+    <string name="toast_external_needs_gesture">Blocked an automatic jump: %1$s\nExternal apps open only when you tap a link on the page</string>
+
+    <!-- ==================== Inspect element ==================== -->
+    <string name="devtools_title">🔧 Inspect element</string>
+    <string name="devtools_message">WebView remote debugging is on (debug builds only).\n\nHow to use it:\n1. Open this in Chrome on your computer:\n   chrome://inspect/#devices\n2. Make sure the phone is connected to the computer over USB and USB debugging is on\n3. Find the current page in Chrome DevTools and click inspect\n\nNote: each tab is a separate page and is listed separately.\n\nCurrent page:\n%1$s</string>
+    <string name="devtools_copy">Copy debug address</string>
+    <string name="devtools_no_page">(no page loaded)</string>
+
+</resources>

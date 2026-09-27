@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 悬浮球菜单的一行：图标 + 文字，内容自适应宽度 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    style="@style/FloatingMenuItem">
+
+    <!-- 纯装饰：右边的文字已经说明了这一项是什么 -->
+    <ImageView
+        android:id="@+id/ivMenuIcon"
+        style="@style/FloatingMenuIcon"
+        android:importantForAccessibility="no" />
+
+    <TextView
+        android:id="@+id/tvMenuLabel"
+        style="@style/FloatingMenuText" />
+
+</LinearLayout>

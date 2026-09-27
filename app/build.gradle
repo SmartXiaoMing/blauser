@@ -1,0 +1,101 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+}
+
+// 发布签名的口令从 local.properties 读（该文件已在 .gitignore 里）。
+// 没配的话回落到 debug 签名，这样别人 clone 下来也能直接构建。
+def localProps = new Properties()
+def localPropsFile = rootProject.file('local.properties')
+if (localPropsFile.exists()) {
+    localPropsFile.withInputStream { localProps.load(it) }
+}
+
+def releaseStoreFile = localProps.getProperty('RELEASE_STORE_FILE') ?: '../release.jks'
+def releaseStorePassword = localProps.getProperty('RELEASE_STORE_PASSWORD')
+def releaseKeyAlias = localProps.getProperty('RELEASE_KEY_ALIAS')
+def releaseKeyPassword = localProps.getProperty('RELEASE_KEY_PASSWORD')
+def hasReleaseSigning =
+    releaseStorePassword != null && releaseKeyAlias != null && releaseKeyPassword != null
+
+android {
+    namespace 'com.blauser.browser'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.blauser.browser"
+        minSdk 21
+        targetSdk 34
+        versionCode 1
+        versionName "1.0.0"
+    }
+
+    signingConfigs {
+        release {
+            if (hasReleaseSigning) {
+                storeFile file(releaseStoreFile)
+                storePassword releaseStorePassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            signingConfig hasReleaseSigning ? signingConfigs.release : signingConfigs.debug
+            // R8：混淆 + 压缩。没有反射、没有 addJavascriptInterface，
+            // 默认规则就够用（AGP 会为 manifest 里声明的组件自动生成 keep 规则）。
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'),
+                'proguard-rules.pro'
+        }
+    }
+
+    // 17 而不是 8：JDK 21 已经不支持用 source/target 8 编译（会告警），
+    // 而 D8 会把新字节码脱糖到 minSdk 21 能跑的形式，所以提上去没有代价。
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+
+    buildFeatures {
+        viewBinding true
+    }
+
+    lint {
+        // 有 error 就中断构建。当前已清零，别让它再涨回去。
+        abortOnError true
+        warningsAsErrors false
+        // 依赖有新版本是提示，不是缺陷，不该拦住发包
+        disable 'GradleDependency', 'AndroidGradlePluginVersion'
+        // 图标形状是设计取舍（见 tools/gen_icon.py），不是问题
+        disable 'IconLauncherShape'
+    }
+
+    testOptions {
+        unitTests.returnDefaultValues = true
+    }
+}
+
+dependencies {
+    implementation 'androidx.core:core-ktx:1.12.0'
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'com.google.android.material:material:1.11.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    // 收藏夹/历史列表用；此前只是靠 material 传递引入了 1.1.0 老版本，这里明写
+    implementation 'androidx.recyclerview:recyclerview:1.3.2'
+    // 无痕标签的存储隔离要 ProfileStore（API 28+）。WebView 自身没有
+    // 「给这一个 WebView 单独一套 cookie」的开关，只能靠它
+    implementation 'androidx.webkit:webkit:1.12.0'
+
+    testImplementation 'junit:junit:4.13.2'
+    // 单测跑在 JVM 上，android.jar 里的 org.json 只是抛异常的桩。
+    // 换成真实现，BookmarkManager 的解析/序列化才能测
+    testImplementation 'org.json:json:20231013'
+}

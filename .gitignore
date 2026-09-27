@@ -1,0 +1,40 @@
+# 构建产物
+build/
+app/build/
+*.apk
+*.aab
+
+# Gradle
+.gradle/
+
+# 本机配置：含 Android SDK 路径与发布签名口令，每台机器不同（参见 README 的「开发」）
+local.properties
+
+# 签名密钥
+#
+# ⚠️ 这两个文件已经 git rm --cached 移出版本控制，但**历史提交里还在**。
+#    远端（github.com/SmartXiaoMing/blauser）目前是空的，还没有推过，
+#    所以在第一次 git push 之前必须先把历史里的密钥清掉 —— 否则一推就等于公开了。
+#
+#    清除办法（会重写全部提交，本地操作、不影响已存在的远端）：
+#      git filter-repo --invert-paths \
+#        --path release.jks --path local-cacerts.jks --force
+#    （filter-repo 未安装时：brew install git-filter-repo）
+#
+#    更省事的替代方案：本应用从未分发过，密钥丢了也无所谓 ——
+#    直接删掉旧的、重新生成一对，然后把历史压成一个初始提交再推。
+release.jks
+local-cacerts.jks
+
+# IDE
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# macOS
+.DS_Store
+
+# 崩溃转储
+*.hprof

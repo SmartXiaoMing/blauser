@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  全屏沉浸式布局：顶部不放任何常驻控件。
+  标签切换、地址输入、收藏都在「新标签页」里（点悬浮球 → 首页）。
+  悬浮球是主要控制入口，由代码动态加入 rootLayout。
+
+  根布局的底色刻意不设 —— 交给主题的 android:windowBackground
+  （见 themes.xml）。两处都设会多画一层，lint 也会报 Overdraw。
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/rootLayout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <!--
+      这一层 LinearLayout 看着可以并进外层，但不行：悬浮球是 rootLayout 的**兄弟**节点
+      （见 FloatingBallView.attach），靠 x/y 绝对定位浮动在内容之上。
+      如果把它并进这个竖向 LinearLayout，球就会在竖向排布里占一格，把网页内容顶下去。
+      lint 的 UselessParent 在这里是误报。
+    -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        tools:ignore="UselessParent">
+
+        <!-- 加载进度：贴在屏幕最顶端的细线 -->
+        <ProgressBar
+            android:id="@+id/progressBar"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="3dp"
+            android:max="100"
+            android:progressTint="@color/brand"
+            android:visibility="gone" />
+
+        <!-- ===== 内容区 ===== -->
+        <FrameLayout
+            android:id="@+id/contentArea"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1">
+
+            <!-- 本标签页的 WebView，由 MainActivity.ensureWebView() 在首次导航时加入。
+                 一个 Activity = 一个标签页，所以这里最多只有一个子 View。
+                 （早期版本是「一个 Activity 装多个 WebView、靠 visibility 切换」，
+                  标签改成独立 task 后那种做法已经废弃。） -->
+            <FrameLayout
+                android:id="@+id/webContainer"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
+
+            <!-- 新标签页 / 默认首页：当前标签是空白页时盖在 WebView 之上。
+                 这里同时承担了「标签切换」和「地址输入」的职责。 -->
+            <include
+                android:id="@+id/newTabPage"
+                layout="@layout/view_new_tab_page"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
+
+            <!-- 加载失败时的自定义错误页，替代 WebView 自带的系统错误页。
+                 放在最后 → 画在最上层。 -->
+            <include
+                android:id="@+id/errorPage"
+                layout="@layout/view_error_page"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
+
+        </FrameLayout>
+
+        <!-- 底部导航栏已移除：后退/前进/刷新/主页 全部移入悬浮球菜单，
+             界面做到完全无边框，网页铺满整屏。 -->
+    </LinearLayout>
+
+</FrameLayout>

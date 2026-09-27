@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      DayNight：跟随系统深浅色。配色全部走 colors.xml / values-night/colors.xml，
+      这里只做主题属性的映射。
+
+      windowBackground 必须显式设成 @color/window_background：
+      不设的话启动瞬间会闪一下系统默认的白底，深色模式下尤其明显。
+    -->
+    <style name="Theme.MobileBrowser" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/brand</item>
+        <item name="colorPrimaryVariant">@color/brand_variant</item>
+        <item name="colorOnPrimary">@color/on_brand</item>
+        <item name="android:windowBackground">@color/window_background</item>
+    </style>
+</resources>

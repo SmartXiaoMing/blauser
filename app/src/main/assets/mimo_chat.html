@@ -1,0 +1,1378 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MiMo V2 Omni Chat</title>
+    <style>
+        :root {
+            --bg-color: #0d1117;
+            --container-bg: rgba(22, 27, 34, 0.6);
+            --border-color: #30363d;
+            --text-primary: #c9d1d9;
+            --text-secondary: #8b949e;
+            --accent-color: #2f81f7;
+            --accent-hover: #388bfd;
+            --user-msg-bg: #1f6feb;
+            --bot-msg-bg: rgba(48, 54, 61, 0.5);
+            --thinking-bg: rgba(48, 54, 61, 0.3);
+            --glass-border: rgba(240, 246, 252, 0.1);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            background-image: radial-gradient(circle at top right, rgba(47, 129, 247, 0.1) 0%, transparent 40%),
+                              radial-gradient(circle at bottom left, rgba(137, 87, 229, 0.1) 0%, transparent 40%);
+            color: var(--text-primary);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* 左右分栏容器 */
+        .main-layout {
+            display: flex;
+            width: 100%;
+            height: 100%;
+        }
+
+        .chat-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid var(--border-color);
+            position: relative;
+        }
+
+        .settings-section {
+            width: 380px;
+            background: rgba(13, 17, 23, 0.8);
+            backdrop-filter: blur(10px);
+            overflow-y: auto;
+            border-left: 1px solid var(--glass-border);
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 隐藏之前的 modal 相关类 */
+        .settings-header {
+            padding: 24px;
+            border-bottom: 1px solid var(--border-color);
+            position: sticky;
+            top: 0;
+            background: rgba(13, 17, 23, 0.95);
+            z-index: 10;
+        }
+        .settings-header h2 {
+            margin: 0;
+            font-size: 1.25rem;
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .settings-content {
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .form-group label {
+            color: var(--text-primary);
+            font-size: 0.95rem;
+            font-weight: 500;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .form-help {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            line-height: 1.4;
+            margin-top: 2px;
+        }
+
+        .form-row-inline {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-top: 5px;
+        }
+        
+        .form-row-inline input[type="range"] {
+            flex: 1;
+            accent-color: var(--accent-color);
+        }
+        
+        .val-disp {
+            font-family: monospace;
+            color: var(--accent-color);
+            font-size: 0.9rem;
+            min-width: 40px;
+            text-align: right;
+        }
+
+        input[type="number"], input[type="text"], input[type="password"], select, textarea {
+            padding: 10px 12px;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: white;
+            outline: none;
+            font-family: inherit;
+            width: 100%;
+            box-sizing: border-box;
+            transition: border-color 0.2s;
+        }
+        
+        input:focus, select:focus, textarea:focus { border-color: var(--accent-color); }
+
+        /* Toggle Switch */
+        .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(255,255,255,0.1); transition: .4s; border-radius: 24px; }
+        .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--accent-color); }
+        input:checked + .slider:before { transform: translateX(20px); }
+
+        /* 左侧聊天区域原有样式 */
+        .header {
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--glass-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.02);
+            backdrop-filter: blur(10px);
+        }
+        .header h1 { margin: 0; font-size: 1.25rem; font-weight: 600; color: white; display: flex; align-items: center; gap: 8px; }
+
+        .chat-container {
+            flex-grow: 1;
+            padding: 24px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            scroll-behavior: smooth;
+        }
+        .chat-container::-webkit-scrollbar, .settings-section::-webkit-scrollbar { width: 8px; }
+        .chat-container::-webkit-scrollbar-track, .settings-section::-webkit-scrollbar-track { background: transparent; }
+        .chat-container::-webkit-scrollbar-thumb, .settings-section::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 4px; }
+        .chat-container::-webkit-scrollbar-thumb:hover, .settings-section::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
+
+        .message { display: flex; flex-direction: column; max-width: 85%; animation: fadeIn 0.3s ease; }
+        .user-message { align-self: flex-end; align-items: flex-end; }
+        .bot-message { align-self: flex-start; align-items: flex-start; }
+
+        .message-content {
+            padding: 14px 18px;
+            border-radius: 18px;
+            line-height: 1.6;
+            font-size: 1rem;
+            word-break: break-word;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        .user-message .message-content {
+            background: var(--user-msg-bg);
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+        .bot-message .message-content {
+            background: var(--bot-msg-bg);
+            border: 1px solid var(--glass-border);
+            border-bottom-left-radius: 4px;
+        }
+
+        .thinking-content {
+            background: var(--thinking-bg);
+            border-left: 3px solid #8b5cf6;
+            padding: 12px 16px;
+            margin-bottom: 12px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            color: #d1d5db;
+            line-height: 1.5;
+            font-style: italic;
+        }
+
+        .input-area {
+            padding: 20px 24px;
+            border-top: 1px solid var(--glass-border);
+            background: rgba(15, 17, 21, 0.5);
+        }
+
+        .input-wrapper {
+            display: flex;
+            gap: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 8px;
+            transition: all 0.3s ease;
+        }
+        .input-wrapper:focus-within { border-color: var(--accent-color); box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2); }
+
+        .mic-btn, .send-btn {
+            background: rgba(255,255,255,0.1);
+            color: white; border: none; border-radius: 12px;
+            width: 48px; height: 48px; min-width: 48px;
+            display: flex; justify-content: center; align-items: center;
+            cursor: pointer; transition: all 0.3s ease; font-size: 1.2rem;
+        }
+        .mic-btn:hover { background: rgba(255,255,255,0.2); transform: scale(1.05); }
+        .mic-btn.recording { background: #ef4444; animation: pulse 1.5s infinite; transform: scale(1.1); }
+        
+        .send-btn { background: var(--accent-color); }
+        .send-btn:hover { background: var(--accent-hover); transform: scale(1.05); }
+        .send-btn:disabled, .mic-btn:disabled { background: #4b5563; cursor: not-allowed; transform: none; animation: none; }
+        .send-btn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        textarea {
+            flex-grow: 1; background: transparent; border: none; color: white;
+            padding: 12px; font-family: inherit; font-size: 1rem;
+            resize: none; outline: none; max-height: 150px; min-height: 24px;
+        }
+
+        /* Debug Panel */
+        .debug-panel { border-top: 1px solid var(--glass-border); background: rgba(0, 0, 0, 0.4); display: flex; flex-direction: column; position: relative; }
+        .debug-panel.collapsed { height: 38px !important; } 
+        .debug-panel.expanded { height: 260px; }
+        .debug-resizer { position: absolute; top: -4px; left: 0; width: 100%; height: 8px; cursor: ns-resize; background: transparent; z-index: 20; transition: background 0.2s; }
+        .debug-resizer:hover, .debug-resizer.active { background: rgba(96, 165, 250, 0.5); }
+        .debug-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 20px; font-size: 0.85rem; color: var(--text-secondary); background: rgba(255,255,255,0.05); border-bottom: 1px solid var(--glass-border); cursor: pointer; }
+        .debug-content { padding: 10px 20px; flex-grow: 1; overflow-y: auto; font-family: monospace; font-size: 0.8rem; color: #a1a1aa; background: #000; }
+        .debug-content::-webkit-scrollbar { width: 6px; }
+        .debug-content::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
+        .log-entry { margin-bottom: 10px; border-bottom: 1px dashed rgba(255,255,255,0.1); padding-bottom: 8px; word-break: break-all; }
+        .log-time { color: #60a5fa; margin-right: 8px; font-weight: bold; }
+        .log-req { color: #34d399; font-weight: bold;}
+        .log-res { color: #c084fc; font-weight: bold;}
+        .log-tts { color: #fbbf24; font-weight: bold;}
+        .log-err { color: #ef4444; font-weight: bold;}
+
+        /* 小按钮样式 */
+        .btn-action { background: rgba(255,255,255,0.1); color: var(--text-primary); border: 1px solid var(--border-color); padding: 6px 14px; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-size: 0.85rem;}
+        .btn-action:hover { background: rgba(255,255,255,0.2); }
+        .btn-danger { color: #fca5a5; border-color: rgba(239,68,68,0.3); background: rgba(239,68,68,0.1); }
+        .btn-danger:hover { background: rgba(239,68,68,0.2); color: #f87171; }
+    </style>
+</head>
+<body>
+
+<div class="main-layout">
+    
+    <!-- 左侧主控聊天区 -->
+    <div class="chat-section">
+        <div class="header">
+            <h1>Xiaomi MiMo-V2-Omni</h1>
+            <button class="btn-action btn-danger" onclick="clearHistory()">🗑️ 清空记忆洗牌</button>
+        </div>
+
+        <div class="chat-container" id="chatContainer">
+            <div class="message bot-message">
+                <div class="message-content">
+                    🤖 <b>连接成功！</b> 我是支持深度思考与流式输出的 MiMo 大模型。<br><br>
+                    您可以在右侧配置鉴权信息和各种神经元参数，或者<b>开启 TTS 自动旁白播报</b>。点击底部的录音发段语音试试我的多模态解析能力吧！
+                </div>
+            </div>
+        </div>
+
+        <div class="input-area" style="position: relative;">
+            <div class="quick-tags" style="display: flex; gap: 8px; margin-bottom: 8px;">
+                <button class="btn-action" style="padding: 4px 12px; font-size: 0.8rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); background: rgba(59, 130, 246, 0.15); color: #93c5fd; transition: background 0.2s;" onmouseover="this.style.background='rgba(59, 130, 246, 0.3)'" onmouseout="this.style.background='rgba(59, 130, 246, 0.15)'" onclick="insertAtCursor('{男主驾}')">👱‍♂️ 男主驾</button>
+                <button class="btn-action" style="padding: 4px 12px; font-size: 0.8rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); background: rgba(236, 72, 153, 0.15); color: #f9a8d4; transition: background 0.2s;" onmouseover="this.style.background='rgba(236, 72, 153, 0.3)'" onmouseout="this.style.background='rgba(236, 72, 153, 0.15)'" onclick="insertAtCursor('{女副驾}')">👩‍🦰 女副驾</button>
+            </div>
+            <div class="input-wrapper">
+                <button class="mic-btn" id="micBtn" onclick="toggleRecording()" title="点击开始录音，再次点击发送音频">🎙️</button>
+                <textarea id="userInput" placeholder="输入你想说的话... (Shift+Enter 换行)" rows="1" oninput="autoExpand(this)" onkeydown="handleKeyDown(event)"></textarea>
+                <button class="send-btn" id="sendBtn" onclick="sendMessage()"><svg viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"></path></svg></button>
+            </div>
+        </div>
+
+        <!-- 调试日志面板 -->
+        <div class="debug-panel collapsed" id="debugPanel">
+            <div class="debug-resizer" id="debugResizer"></div>
+            <div class="debug-header" onclick="toggleDebug()">
+                <span>🛠️ 调试日志控制台 (Trace Logs)</span>
+                <div>
+                    <button class="btn-action" onclick="clearLogs(event)" style="padding: 2px 8px; margin-right: 12px; font-size: 0.75rem;">清空打印</button>
+                    <span id="toggleDebugBtn" style="font-weight:bold;">展开 ▲</span>
+                </div>
+            </div>
+            <div class="debug-content" id="debugContent"></div>
+        </div>
+    </div>
+
+
+    <!-- 右侧设置与参数控制区 -->
+    <div class="settings-section">
+        <div class="settings-header">
+            <h2>⚙️ 控制中心</h2>
+            <div class="form-help">所有修改自动保存即时生效。</div>
+        </div>
+        
+        <div class="settings-content">
+            <!-- 模型选择 -->
+            <div class="form-group">
+                <label>大语言模型 (Model)</label>
+                <div class="form-help">切换不同的底层模型以获得不同的响应体验。</div>
+                <select id="p_model" onchange="switchModel()" style="margin-top: 5px;">
+                    <option value="mimo-v2-omni">Xiaomi MiMo-V2-Omni (多模态思考)</option>
+                    <option value="mify-gemini">Mify Gemini (管道文本输出)</option>
+                </select>
+            </div>
+
+            <!-- 鉴权与地址 -->
+            <div class="form-group">
+                <label>API Endpoint (接口地址)</label>
+                <div class="form-help">请求的大模型接口地址（支持自定义代理）。</div>
+                <input type="text" id="p_endpoint" placeholder="https://api.xiaomimimo.com/v1/chat/completions" onchange="saveSettings()">
+            </div>
+            <div class="form-group">
+                <label>API Key (鉴权密钥)</label>
+                <div class="form-help">访问上述接口所需的凭证，必填。</div>
+                <input type="password" id="p_apiKey" placeholder="sk-..." onchange="saveSettings()">
+            </div>
+
+            <!-- 系统设定 -->
+            <div class="form-group">
+                <label>System Prompt (系统设定)</label>
+                <div class="form-help">这是第一层记忆指令。可在文中任意位置使用变量 <code>{N}</code>，发包时将自动替换为下方的实际阈值。</div>
+                <textarea id="p_systemPrompt" rows="6" onchange="saveSettings()" style="resize: vertical; font-size: 0.85rem; line-height: 1.5; color: #cbd5e1; max-height: 80vh;"></textarea>
+            </div>
+
+            <!-- 音频 TTS 播报 -->
+            <div class="form-group" style="background: rgba(47,129,247,0.05); padding: 15px; border-radius: 12px; border: 1px solid rgba(47,129,247,0.2);">
+                <label style="color: #60a5fa; font-size:1.05rem; margin-bottom:5px;">
+                    🎙️ 智能车载 TTS 系统
+                </label>
+                <div class="form-help" style="margin-bottom: 12px;">根据大模型回复的 JSON 自动静默裁决是否播报。（消耗少量 tokens）</div>
+                
+                <label style="font-size: 0.85rem;">发音人 (Voice ID)</label>
+                <select id="p_tts_voice" onchange="saveSettings()" style="margin-bottom:8px; margin-top:4px;">
+                    <option value="mimo_default">mimo_default (MiMo 默认)</option>
+                    <option value="default_zh">default_zh (中文女声)</option>
+                    <option value="default_en">default_en (英文女声)</option>
+                </select>
+
+                <label style="font-size: 0.85rem;">语速 (Speech Rate)</label>
+                <div class="form-row-inline">
+                    <input type="range" id="p_tts_speed" min="0.25" max="4.0" step="0.25" oninput="updateVal('v_tts_speed', this.value); saveSettings()">
+                    <span class="val-disp" id="v_tts_speed">1.0</span>
+                </div>
+
+                <label style="font-size: 0.85rem;">幽默情绪阈值 (TTS Threshold)</label>
+                <div class="form-help" style="margin-bottom:4px;">仅当 JSON 返回 <code>humor_level</code> ≥ 此值时开启播放</div>
+                <div class="form-row-inline">
+                    <input type="range" id="p_tts_threshold" min="0" max="10" step="1" oninput="updateVal('v_tts_threshold', this.value); saveSettings()">
+                    <span class="val-disp" id="v_tts_threshold">5</span>
+                </div>
+
+                <div style="margin-top:12px;">
+                    <label style="font-size: 0.85rem; display:block; margin-bottom:4px;">情感与方言风格 (Style)</label>
+                    <input type="text" id="p_tts_style" placeholder="夹子音、开心、东北话 等（留空则不使用）" onchange="saveSettings()" style="width: 100%; border:1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.3); border-radius: 6px; padding: 6px 10px; color: #d1d5db; font-size: 0.85rem; outline: none; margin-bottom: 8px;" />
+                    
+                    <label style="font-size: 0.85rem; display:block; margin-bottom:4px;">自定义试听文本</label>
+                    <input type="text" id="p_tts_test_text" value="您好！我是 Xiaomi MiMo 大模型助手，当前发音与语速测试正常。" style="width: 100%; border:1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.3); border-radius: 6px; padding: 6px 10px; color: #d1d5db; font-size: 0.85rem; outline: none;" />
+                </div>
+
+                <button id="testTtsBtn" onclick="testTTS()" style="width: 100%; margin-top: 10px; background: rgba(96,165,250,0.1); border: 1px solid rgba(96,165,250,0.3); color: #60a5fa; padding: 10px; border-radius: 8px; cursor: pointer; transition: all 0.2s; font-size: 0.9rem;">
+                    ▶️ 试听当前发音人
+                </button>
+            </div>
+
+            <!-- LLM 参数 -->
+            <div class="form-group">
+                <label>
+                    开启深度思考 (Reasoning)
+                    <label class="switch"><input type="checkbox" id="p_thinking" onchange="saveSettings()"><span class="slider"></span></label>
+                </label>
+                <div class="form-help">驱动模型使用 Omni 内置逻辑内核展示推演草稿（将展示于灰色虚线侧边栏）。</div>
+            </div>
+
+            <div class="form-group">
+                <label>Temperature (思维发散度)</label>
+                <div class="form-help">数值越大模型越跳脱、越具创意；越低则返回的用词越精准固定（推荐 1.0）。</div>
+                <div class="form-row-inline">
+                    <input type="range" id="p_temp" min="0" max="1.5" step="0.1" oninput="updateVal('v_temp', this.value); saveSettings()">
+                    <span class="val-disp" id="v_temp">1.0</span>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Top P (高概率采样)</label>
+                <div class="form-help">控制词汇库抽取的纯度范围（如 0.95 即放弃最荒杂的 5% 推断节点）。</div>
+                <div class="form-row-inline">
+                    <input type="range" id="p_topp" min="0.01" max="1.0" step="0.01" oninput="updateVal('v_topp', this.value); saveSettings()">
+                    <span class="val-disp" id="v_topp">0.95</span>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Max Tokens (生成配额)</label>
+                <div class="form-help">单词响应的最大字符上限。Omni 最大兼容到 131,072。(太大会报 400 错误)。</div>
+                <input type="number" id="p_maxTokens" max="131072" style="margin-top: 5px;" onchange="saveSettings()">
+            </div>
+
+            <div class="form-group">
+                <label>Freq Penalty (词频惩罚)</label>
+                <div class="form-help">正值会惩罚那些频繁出现的词汇，逼迫大模型改变遣词造句习惯。</div>
+                <div class="form-row-inline">
+                    <input type="range" id="p_freq" min="-2.0" max="2.0" step="0.1" oninput="updateVal('v_freq', this.value); saveSettings()">
+                    <span class="val-disp" id="v_freq">0.0</span>
+                </div>
+            </div>
+
+            <div class="form-group" style="border-bottom: none;">
+                <label>Pres Penalty (新奇惩罚)</label>
+                <div class="form-help">正值会鼓励大模型抛出前面上下文中未曾提及的全新话题。</div>
+                <div class="form-row-inline">
+                    <input type="range" id="p_pres" min="-2.0" max="2.0" step="0.1" oninput="updateVal('v_pres', this.value); saveSettings()">
+                    <span class="val-disp" id="v_pres">0.0</span>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script>
+    const globalDefaultEndpoint = 'https://api.xiaomimimo.com/v1/chat/completions';
+    const ttsEndpoint = 'https://api.xiaomimimo.com/v1/audio/speech';
+    const modelName = 'mimo-v2-omni';
+    let messageHistory = [];
+
+    // 默认与持久化参数状态
+    let settings = {
+        model: 'mimo-v2-omni',
+        
+        // MiMo Omni settings
+        endpoint: globalDefaultEndpoint,
+        apiKey: '', temperature: 1.0, top_p: 0.95, max_tokens: 4096,
+        frequency_penalty: 0.0, presence_penalty: 0.0, thinking: true,
+        system_prompt: "You are a helpful and intelligent assistant powered by Xiaomi MiMo-V2-Omni model.",
+        
+        // Mify Gemini settings
+        gemini_endpoint: globalDefaultEndpoint,
+        gemini_apiKey: '', gemini_temperature: 1.0, gemini_top_p: 0.95, gemini_max_tokens: 8192,
+        gemini_frequency_penalty: 0.0, gemini_presence_penalty: 0.0,
+        gemini_system_prompt: "You are a helpful and intelligent assistant powered by Mify Gemini model.",
+
+        tts_voice: 'mimo_default', tts_speed: 1.0, tts_style: '', tts_threshold: 5
+    };
+
+    function getCurrentModelPrefix() {
+        return settings.model === 'mify-gemini' ? 'gemini_' : '';
+    }
+
+    function resetHistorySystemPrompt() {
+        const prefix = getCurrentModelPrefix();
+        const sysPrompt = settings[prefix + 'system_prompt'];
+        if (messageHistory.length === 0 || messageHistory[0].role !== 'system') {
+            messageHistory.unshift({"role": "system", "content": sysPrompt});
+        } else {
+            messageHistory[0].content = sysPrompt;
+        }
+    }
+
+    function switchModel() {
+        // Save current UI to old model before switching
+        saveSettings(false);
+        settings.model = document.getElementById('p_model').value;
+        // Re-render UI
+        updateUIFromSettings();
+        // Save new model choice
+        localStorage.setItem('mimo_omni_settings', JSON.stringify(settings));
+        
+        // Reset chat or just system prompt? Let's just update system prompt
+        resetHistorySystemPrompt();
+    }
+
+    function updateUIFromSettings() {
+        document.getElementById('p_model').value = settings.model || 'mimo-v2-omni';
+        
+        const prefix = getCurrentModelPrefix();
+
+        document.getElementById('p_endpoint').value = settings[prefix + 'endpoint'] || globalDefaultEndpoint;
+        document.getElementById('p_apiKey').value = settings[prefix + 'apiKey'] || '';
+        document.getElementById('p_systemPrompt').value = settings[prefix + 'system_prompt'] || '';
+        
+        document.getElementById('p_tts_voice').value = settings.tts_voice;
+        document.getElementById('p_tts_style').value = settings.tts_style || '';
+        document.getElementById('p_tts_speed').value = settings.tts_speed;
+        document.getElementById('p_tts_threshold').value = settings.tts_threshold !== undefined ? settings.tts_threshold : 5;
+        updateVal('v_tts_speed', settings.tts_speed);
+        updateVal('v_tts_threshold', settings.tts_threshold !== undefined ? settings.tts_threshold : 5);
+
+        // thinking is only for mimo
+        const thinkingContainer = document.getElementById('p_thinking').closest('.form-group');
+        if (settings.model === 'mify-gemini') {
+            thinkingContainer.style.display = 'none';
+        } else {
+            thinkingContainer.style.display = 'flex';
+            document.getElementById('p_thinking').checked = settings.thinking;
+        }
+
+        document.getElementById('p_temp').value = settings[prefix + 'temperature'] !== undefined ? settings[prefix + 'temperature'] : 1.0;
+        document.getElementById('p_topp').value = settings[prefix + 'top_p'] !== undefined ? settings[prefix + 'top_p'] : 0.95;
+        document.getElementById('p_maxTokens').value = settings[prefix + 'max_tokens'] || 4096;
+        document.getElementById('p_freq').value = settings[prefix + 'frequency_penalty'] !== undefined ? settings[prefix + 'frequency_penalty'] : 0.0;
+        document.getElementById('p_pres').value = settings[prefix + 'presence_penalty'] !== undefined ? settings[prefix + 'presence_penalty'] : 0.0;
+
+        updateVal('v_temp', document.getElementById('p_temp').value);
+        updateVal('v_topp', document.getElementById('p_topp').value);
+        updateVal('v_freq', document.getElementById('p_freq').value);
+        updateVal('v_pres', document.getElementById('p_pres').value);
+    }
+
+    function initData() {
+        const saved = localStorage.getItem('mimo_omni_settings');
+        if(saved) {
+            try {
+                const parsedData = JSON.parse(saved);
+                Object.assign(settings, parsedData);
+                // 紧急清理遗留异常超大参数
+                if (settings.max_tokens > 131072) settings.max_tokens = 131072;
+                if (settings.gemini_max_tokens > 131072) settings.gemini_max_tokens = 131072;
+            } catch(e) { console.error('Settings parse err:', e); }
+        } else {
+            const oldKey = localStorage.getItem('mimo_api_key');
+            if(oldKey) settings.apiKey = oldKey;
+        }
+
+        if (!settings.model) settings.model = 'mimo-v2-omni';
+
+        // 把设置回填到 UI
+        updateUIFromSettings();
+
+        resetHistorySystemPrompt();
+    }
+
+    function saveSettings(writeToStorage = true) {
+        const prefix = getCurrentModelPrefix();
+
+        settings[prefix + 'endpoint'] = document.getElementById('p_endpoint').value.trim();
+        settings[prefix + 'apiKey'] = document.getElementById('p_apiKey').value.trim();
+        settings[prefix + 'system_prompt'] = document.getElementById('p_systemPrompt').value.trim();
+        resetHistorySystemPrompt();
+
+        settings.tts_voice = document.getElementById('p_tts_voice').value;
+        settings.tts_style = document.getElementById('p_tts_style').value.trim();
+        settings.tts_speed = parseFloat(document.getElementById('p_tts_speed').value);
+        settings.tts_threshold = parseInt(document.getElementById('p_tts_threshold').value) || 0;
+
+        settings[prefix + 'temperature'] = parseFloat(document.getElementById('p_temp').value);
+        settings[prefix + 'top_p'] = parseFloat(document.getElementById('p_topp').value);
+        
+        let parsedMax = parseInt(document.getElementById('p_maxTokens').value) || 4096;
+        if (parsedMax > 131072) parsedMax = 131072;
+        settings[prefix + 'max_tokens'] = parsedMax;
+        
+        settings[prefix + 'frequency_penalty'] = parseFloat(document.getElementById('p_freq').value);
+        settings[prefix + 'presence_penalty'] = parseFloat(document.getElementById('p_pres').value);
+        
+        if (settings.model === 'mimo-v2-omni') {
+            settings.thinking = document.getElementById('p_thinking').checked;
+        }
+
+        if (writeToStorage) {
+            localStorage.setItem('mimo_omni_settings', JSON.stringify(settings));
+        }
+    }
+
+    function clearHistory() {
+        messageHistory = [];
+        resetHistorySystemPrompt();
+        document.getElementById('chatContainer').innerHTML = '<div class="message bot-message"><div class="message-content">🤖 记忆已完全重置脱水，现在的我是全新的啦，您可以开启 TTS 或换个人声进行下一轮测试！</div></div>';
+    }
+
+    function updateVal(id, val) {
+        document.getElementById(id).innerText = parseFloat(val).toFixed(2);
+    }
+
+    // --- Debug Tools ---
+    function toggleDebug() {
+        const panel = document.getElementById('debugPanel');
+        if (panel.classList.contains('collapsed')) {
+            panel.classList.replace('collapsed', 'expanded');
+            document.getElementById('toggleDebugBtn').innerText = '收起 ▼';
+        } else {
+            panel.classList.replace('expanded', 'collapsed');
+            panel.style.height = ''; // 清除拖拽痕迹
+            document.getElementById('toggleDebugBtn').innerText = '展开 ▲';
+        }
+    }
+
+    function clearLogs(e) {
+        e.stopPropagation();
+        document.getElementById('debugContent').innerHTML = '';
+    }
+
+    function addLog(type, content) {
+        const container = document.getElementById('debugContent');
+        if (!container) return;
+        const entry = document.createElement('div');
+        entry.className = 'log-entry';
+        const time = new Date().toLocaleTimeString();
+        let safeContent = typeof content === 'object' ? JSON.stringify(content, null, 2) : String(content);
+        safeContent = escapeHTML(safeContent);
+        
+        let typeHtml = '';
+        if(type === 'REQ') typeHtml = `<span class="log-req">[请求 REQUEST]</span>`;
+        else if (type === 'RES') typeHtml = `<span class="log-res">[响应 STREAM]</span>`;
+        else if (type === 'TTS_REQ') typeHtml = `<span class="log-tts">[请求 TTS_REQ]</span>`;
+        else if (type === 'TTS_RES') typeHtml = `<span class="log-tts">[响应 TTS 音频]</span>`;
+        else if (type === 'ERR') typeHtml = `<span class="log-err">[错误 ERROR]</span>`;
+        else typeHtml = `<span>[${escapeHTML(type)}]</span>`;
+        
+        entry.innerHTML = `<span class="log-time">${time}</span> ${typeHtml}<br><pre style="white-space: pre-wrap; margin: 6px 0 0 0; font-family: monospace;">${safeContent}</pre>`;
+        container.appendChild(entry);
+        container.scrollTop = container.scrollHeight;
+    }
+
+    // --- UI Interactions ---
+    function insertAtCursor(text) {
+        const inputEl = document.getElementById('userInput');
+        const start = inputEl.selectionStart;
+        const end = inputEl.selectionEnd;
+        const currentVal = inputEl.value;
+        inputEl.value = currentVal.substring(0, start) + text + currentVal.substring(end);
+        inputEl.selectionStart = inputEl.selectionEnd = start + text.length;
+        inputEl.focus();
+        autoExpand(inputEl);
+    }
+
+    function autoExpand(el) {
+        el.style.height = 'auto';
+        el.style.height = (el.scrollHeight) + 'px';
+        if (el.value === '') { el.style.height = 'auto'; }
+    }
+
+    function handleKeyDown(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    }
+
+    // --- Audio WebM->Wav Converter ---
+    async function convertToWavBase64(blob) {
+        const arrayBuffer = await blob.arrayBuffer();
+        // 关键修复：多数大语言模型语音转录（如 Whisper）强依赖 16000Hz。
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+
+        const numOfChan = audioBuffer.numberOfChannels;
+        const length = audioBuffer.length * numOfChan * 2 + 44;
+        const buffer = new ArrayBuffer(length);
+        const view = new DataView(buffer);
+        const channels = [];
+        let sampleRate = audioBuffer.sampleRate;
+        let offset = 0, pos = 0;
+
+        function setUint16(data) { view.setUint16(pos, data, true); pos += 2; }
+        function setUint32(data) { view.setUint32(pos, data, true); pos += 4; }
+
+        setUint32(0x46464952); // "RIFF"
+        setUint32(length - 8);
+        setUint32(0x45564157); // "WAVE"
+        setUint32(0x20746d66); // "fmt " chunk
+        setUint32(16);
+        setUint16(1); // PCM
+        setUint16(numOfChan);
+        setUint32(sampleRate);
+        setUint32(sampleRate * 2 * numOfChan);
+        setUint16(numOfChan * 2); 
+        setUint16(16); // 16-bit
+        setUint32(0x61746164); // "data" - chunk
+        setUint32(length - pos - 4);
+
+        for (let i = 0; i < audioBuffer.numberOfChannels; i++) channels.push(audioBuffer.getChannelData(i));
+        while (pos < length) {
+            for (let i = 0; i < numOfChan; i++) {
+                let sample = Math.max(-1, Math.min(1, channels[i][offset]));
+                sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767) | 0;
+                view.setInt16(pos, sample, true); 
+                pos += 2;
+            }
+            offset++;
+        }
+        
+        let binary = '';
+        const bytes = new Uint8Array(buffer);
+        for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+        return window.btoa(binary);
+    }
+
+    // --- Audio Recording Logic ---
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let isRecording = false;
+
+    async function toggleRecording() {
+        if (!settings.apiKey) return alert('请先在右侧面板设置 API Key');
+
+        const micBtn = document.getElementById('micBtn');
+        if (isRecording) {
+            mediaRecorder.stop();
+            isRecording = false;
+            micBtn.classList.remove('recording');
+            micBtn.innerHTML = '🎙️';
+        } else {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+                mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
+                mediaRecorder.onstop = () => {
+                    stream.getTracks().forEach(track => track.stop());
+                    processAudioAndSend();
+                };
+                mediaRecorder.start();
+                isRecording = true;
+                micBtn.classList.add('recording');
+                micBtn.innerHTML = '⏹️';
+            } catch (err) {
+                alert('麦克风录音调用失败！\n环境要求：https:// 或 http://localhost\n\n报错: ' + err.message);
+            }
+        }
+    }
+
+    async function processAudioAndSend() {
+        const blob = new Blob(audioChunks, { type: 'audio/webm' });
+        try {
+            const wavBase64 = await convertToWavBase64(blob);
+            sendMultimodalRequest(wavBase64, 'wav', document.getElementById('userInput').value.trim());
+        } catch(e) {
+            alert("前端转换音频编码失败: " + e.message);
+        }
+    }
+
+    // --- Data Sending & Rendering ---
+    function sendMessage() {
+        const text = document.getElementById('userInput').value.trim();
+        if (!text) return;
+        if (!settings.apiKey) return alert('请先在右侧面板设置 API Key');
+        sendMultimodalRequest(null, null, text);
+    }
+
+    function escapeHTML(str) {
+        return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+    }
+    
+    // --- TTS Synthesis Core ---
+    async function executeTTSPlayback(textContent, chatCtx) {
+        if (!textContent) return;
+        
+        let contentToRead = null;
+        let isJsonParsed = false;
+        
+        try {
+            // 极致宽容度：剥离前后杂质，专门提取大括号
+            const match = textContent.match(/\{[\s\S]*\}/);
+            if (match) {
+                const j = JSON.parse(match[0]);
+                if (j.reply) {
+                    isJsonParsed = true;
+                    if (j.humor_level !== undefined && settings.tts_threshold !== undefined) {
+                        if (j.humor_level >= settings.tts_threshold) {
+                            contentToRead = j.reply;
+                        } else {
+                            addLog('TTS_SKIP', `拦截: humor_level(${j.humor_level}) < 设定阈值(${settings.tts_threshold})，未达阈值中止语音播报。`);
+                            return; 
+                        }
+                    } else {
+                        // 完全依赖阈值控制，连阈值都没有则拒绝执行
+                        addLog('TTS_SKIP', `未检测到合格的 humor_level 评估参数，静默处理（安全跳过）。`);
+                        return;
+                    }
+                }
+            }
+        } catch(e) { }
+
+        if (!contentToRead) {
+            // 如果以上解析完全失败或格式损毁代表非规整输出，绝对不把原生带有代码框或大块 json 乱码的文本扔给 TTS
+            addLog('TTS_SKIP', `未能成功提取结构化 JSON 回复模型，绝对禁止兜底朗读全文。`);
+            return;
+        }
+
+        let finalTTSContent = contentToRead;
+        if (settings.tts_style && settings.tts_style.trim()) {
+            finalTTSContent = `<style>${settings.tts_style}</style>` + finalTTSContent;
+        }
+        
+        addLog('TTS_REQ', { model: 'mimo-v2-tts', auto_json_filtered: isJsonParsed, voice: settings.tts_voice, speed: settings.tts_speed, style: settings.tts_style, text_preview: finalTTSContent.substring(0, 40) + '...' });
+        
+        try {
+            const ttsEndpointToUse = settings.endpoint || globalDefaultEndpoint;
+            const response = await fetch(ttsEndpointToUse, { // 核心改动：TTS 与 Chat 共用 endpoint
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + settings.apiKey
+                },
+                body: JSON.stringify({
+                    model: 'mimo-v2-tts',
+                    messages: [
+                        { role: 'assistant', content: finalTTSContent }
+                    ],
+                    audio: {
+                        format: 'wav',
+                        voice: settings.tts_voice
+                    },
+                    stream: false
+                })
+            });
+
+            if (!response.ok) {
+                const errText = await response.text();
+                throw new Error(`TTS 请求被拒绝 [HTTP ${response.status}]: ${errText}`);
+            }
+
+            const data = await response.json();
+            const audioBase64 = data.choices[0].message.audio.data;
+            const audioUrl = `data:audio/wav;base64,${audioBase64}`;
+            
+            // Append audio element inline to the specific assistant container
+            const ttsWrap = document.createElement('div');
+            ttsWrap.style.marginTop = '15px';
+            ttsWrap.style.borderTop = '1px dashed rgba(255,255,255,0.1)';
+            ttsWrap.style.paddingTop = '10px';
+            
+            const hintDiv = document.createElement('div');
+            hintDiv.style.fontSize = '0.8rem';
+            hintDiv.style.color = '#a5b4fc';
+            hintDiv.style.marginBottom = '5px';
+            hintDiv.innerHTML = `🤖 语音播报 (${settings.tts_voice} - ${settings.tts_speed}x):`;
+            
+            const audioEl = document.createElement('audio');
+            audioEl.controls = true;
+            audioEl.autoplay = true;
+            audioEl.src = audioUrl;
+            audioEl.style.height = '35px';
+            audioEl.style.width = '100%';
+            audioEl.style.borderRadius = '8px';
+            audioEl.playbackRate = settings.tts_speed; // 客户端动态调节语速
+            
+            ttsWrap.appendChild(hintDiv);
+            ttsWrap.appendChild(audioEl);
+            chatCtx.mainArea.appendChild(ttsWrap);
+            document.getElementById('chatContainer').scrollTop = document.getElementById('chatContainer').scrollHeight;
+            
+            addLog('TTS_RES', `Successfully converted ${textContent.length} chars to Speech (Base64 length: ${audioBase64.length})`);
+
+        } catch (e) {
+            addLog('ERR', "TTS Engine Error: " + e.message);
+            const errDiv = document.createElement('div');
+            errDiv.style.color = '#fca5a5';
+            errDiv.style.fontSize = '0.85rem';
+            errDiv.style.marginTop = '10px';
+            errDiv.innerHTML = `⚠️ TTS 生成失败: ${escapeHTML(e.message)}`;
+            chatCtx.mainArea.appendChild(errDiv);
+        }
+    }
+
+    async function testTTS() {
+        if (!settings.apiKey) return alert('请先在上方设置 API Key');
+        
+        let testText = document.getElementById('p_tts_test_text').value.trim();
+        if (!testText) {
+            testText = "试音文本为空，请在文本框输入内容。";
+            document.getElementById('p_tts_test_text').value = testText;
+        }
+        
+        const btn = document.getElementById('testTtsBtn');
+        const oldText = btn.innerHTML;
+        btn.innerHTML = '生成中...';
+        btn.disabled = true;
+        
+        const testVoice = document.getElementById('p_tts_voice').value;
+        const testSpeed = parseFloat(document.getElementById('p_tts_speed').value);
+        const testStyle = document.getElementById('p_tts_style').value.trim();
+
+        let finalTestText = testText;
+        if (testStyle) {
+            finalTestText = `<style>${testStyle}</style>` + finalTestText;
+        }
+
+        addLog('TTS_REQ', { action: 'Test TTS', model: 'mimo-v2-tts', voice: testVoice, speed: testSpeed, style: testStyle, text: finalTestText });
+        
+        try {
+            const ttsEndpointToUse = settings.endpoint || globalDefaultEndpoint;
+            const response = await fetch(ttsEndpointToUse, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + settings.apiKey
+                },
+                body: JSON.stringify({
+                    model: 'mimo-v2-tts',
+                    messages: [
+                        { role: 'assistant', content: finalTestText }
+                    ],
+                    audio: {
+                        format: 'wav',
+                        voice: testVoice
+                    },
+                    stream: false
+                })
+            });
+
+            if (!response.ok) {
+                const errText = await response.text();
+                throw new Error(`试听请求被拒绝 [HTTP ${response.status}]: ${errText}`);
+            }
+
+            const data = await response.json();
+            const audioBase64 = data.choices[0].message.audio.data;
+            const audioUrl = `data:audio/wav;base64,${audioBase64}`;
+            
+            addLog('TTS_RES', `Test Audio generated (Base64 Length: ${audioBase64.length})`);
+            
+            // 立即后台播放
+            const audioPlayer = new Audio(audioUrl);
+            audioPlayer.playbackRate = testSpeed; // 手动覆盖倍速
+            audioPlayer.play();
+
+            // 也把试听播放条放置到底部 Debug 日志，满足用户要求的所有内容放入调试区
+            const container = document.getElementById('debugContent');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            
+            const timeSpan = document.createElement('span');
+            timeSpan.className = 'log-time';
+            timeSpan.textContent = new Date().toLocaleTimeString();
+            
+            const ttsSpan = document.createElement('span');
+            ttsSpan.className = 'log-tts';
+            ttsSpan.textContent = '[🔊 试音通道] 该音频件已存留此处供后续反复比对试听：';
+            
+            const br = document.createElement('br');
+            
+            const audioEl = document.createElement('audio');
+            audioEl.controls = true;
+            audioEl.src = audioUrl;
+            audioEl.style.height = '35px';
+            audioEl.style.width = '100%';
+            audioEl.style.maxWidth = '400px';
+            audioEl.style.borderRadius = '8px';
+            audioEl.style.marginTop = '8px';
+            audioEl.style.outline = 'none';
+            audioEl.playbackRate = testSpeed; // 同步倍速显示状态
+            
+            entry.appendChild(timeSpan);
+            entry.appendChild(document.createTextNode(' '));
+            entry.appendChild(ttsSpan);
+            entry.appendChild(br);
+            entry.appendChild(audioEl);
+            
+            container.appendChild(entry);
+            container.scrollTop = container.scrollHeight;
+
+        } catch (e) {
+            addLog('ERR', "TTS Test Engine Error: " + e.message);
+            alert("TTS测试失败，详见底部调试日志: " + e.message);
+        } finally {
+            btn.innerHTML = oldText;
+            btn.disabled = false;
+        }
+    }
+
+    async function sendMultimodalRequest(audioBase64, audioFormat, textContent) {
+        const btn = document.getElementById('sendBtn');
+        const micBtn = document.getElementById('micBtn');
+        const inputEl = document.getElementById('userInput');
+        
+        btn.disabled = true; micBtn.disabled = true; inputEl.disabled = true;
+
+        let finalContent;
+        let displayHTML = '';
+        
+        if (audioBase64) {
+            let contentArr = [];
+            contentArr.push({ "type": "input_audio", "input_audio": { "data": audioBase64, "format": audioFormat } });
+            
+            const audioSrc = `data:audio/${audioFormat};base64,${audioBase64}`;
+            displayHTML += `<div style="margin-bottom: 8px; color: #a5b4fc;">
+                🎵 <i>[发送了一段多模态语音]</i><br>
+                <audio controls src="${audioSrc}" style="height: 35px; margin-top: 5px; max-width: 100%; border-radius: 8px;"></audio>
+            </div>`;
+            
+            if (textContent) {
+                contentArr.push({ "type": "text", "text": textContent });
+                displayHTML += '<div>' + escapeHTML(textContent).replace(/\n/g, '<br>') + '</div>';
+            }
+            finalContent = contentArr;
+        } else {
+            finalContent = textContent;
+            displayHTML = escapeHTML(textContent).replace(/\n/g, '<br>');
+        }
+
+        const chatContainer = document.getElementById('chatContainer');
+        chatContainer.insertAdjacentHTML('beforeend', `
+            <div class="message user-message">
+                <div class="message-content">${displayHTML}</div>
+            </div>
+        `);
+        
+        inputEl.value = '';
+        inputEl.style.height = 'auto';
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+
+        messageHistory.push({ "role": "user", "content": finalContent });
+
+        // 动态克隆记录栈，处理 Prompt 模板化的 {N} 锚点替换
+        const dynamicMessages = messageHistory.map(msg => {
+            if (msg.role === 'system' && msg.content) {
+                return { ...msg, content: msg.content.replace(/\{N\}/g, settings.tts_threshold) };
+            }
+            return msg;
+        });
+
+        const isGemini = settings.model === 'mify-gemini';
+        const currentModelName = isGemini ? 'mify-gemini' : 'mimo-v2-omni';
+        const currentPrefix = isGemini ? 'gemini_' : '';
+
+        const endpointToUse = settings[currentPrefix + 'endpoint'] || globalDefaultEndpoint;
+        const apiKeyToUse = settings[currentPrefix + 'apiKey'];
+
+        if (!apiKeyToUse) {
+            alert("请在右侧控制中心填写当前模型对应的 API Key！");
+            btn.disabled = false; micBtn.disabled = false; inputEl.disabled = false;
+            return;
+        }
+
+        let fetchUrl = endpointToUse;
+        let fetchHeaders = { 'Content-Type': 'application/json' };
+        let fetchBody;
+
+        if (isGemini) {
+            let geminiContents = [];
+            let geminiSystemInstruction = null;
+
+            dynamicMessages.forEach(msg => {
+                if (msg.role === 'system') {
+                    geminiSystemInstruction = { parts: [{ text: msg.content }] };
+                } else {
+                    let role = msg.role === 'assistant' ? 'model' : 'user';
+                    let parts = [];
+                    
+                    if (Array.isArray(msg.content)) {
+                        msg.content.forEach(c => {
+                            if (c.type === 'text') {
+                                parts.push({ text: c.text });
+                            } else if (c.type === 'input_audio') {
+                                parts.push({
+                                    inline_data: {
+                                        mime_type: `audio/${c.input_audio.format}`,
+                                        data: c.input_audio.data
+                                    }
+                                });
+                            }
+                        });
+                    } else {
+                        parts.push({ text: msg.content || "" });
+                    }
+                    geminiContents.push({ role: role, parts: parts });
+                }
+            });
+
+            fetchBody = { contents: geminiContents };
+            if (geminiSystemInstruction) {
+                fetchBody.system_instruction = geminiSystemInstruction;
+            }
+            
+            fetchBody.generationConfig = {
+                temperature: settings[currentPrefix + 'temperature'],
+                topP: settings[currentPrefix + 'top_p'],
+                maxOutputTokens: settings[currentPrefix + 'max_tokens']
+            };
+
+            fetchHeaders['x-goog-api-key'] = apiKeyToUse;
+        } else {
+            fetchBody = { model: currentModelName, messages: dynamicMessages, stream: true };
+            if (settings[currentPrefix + 'temperature'] !== undefined && settings[currentPrefix + 'temperature'] !== 1.0) fetchBody.temperature = settings[currentPrefix + 'temperature'];
+            if (settings[currentPrefix + 'top_p'] !== undefined && settings[currentPrefix + 'top_p'] !== 0.95) fetchBody.top_p = settings[currentPrefix + 'top_p'];
+            if (settings[currentPrefix + 'frequency_penalty'] !== undefined && settings[currentPrefix + 'frequency_penalty'] !== 0) fetchBody.frequency_penalty = settings[currentPrefix + 'frequency_penalty'];
+            if (settings[currentPrefix + 'presence_penalty'] !== undefined && settings[currentPrefix + 'presence_penalty'] !== 0) fetchBody.presence_penalty = settings[currentPrefix + 'presence_penalty'];
+            if (settings[currentPrefix + 'max_tokens'] !== undefined && settings[currentPrefix + 'max_tokens'] !== 32768) fetchBody.max_completion_tokens = settings[currentPrefix + 'max_tokens'];
+            if (settings.thinking) fetchBody.thinking = { "type": "enabled" };
+
+            fetchHeaders['Authorization'] = 'Bearer ' + apiKeyToUse;
+        }
+
+        let chatCtx = { mainArea: null, thinkingBox: null, contentBox: null, isFinished: false };
+
+        function createStreamingDOM() {
+            const assistantDiv = document.createElement('div');
+            assistantDiv.className = 'message bot-message';
+            
+            const mainArea = document.createElement('div');
+            mainArea.className = 'message-content';
+            
+            if (!isGemini && settings.thinking) {
+                const thinkDiv = document.createElement('div');
+                thinkDiv.className = 'thinking-content';
+                thinkDiv.innerHTML = '🤔 思考中...';
+                mainArea.appendChild(thinkDiv);
+                chatCtx.thinkingBox = thinkDiv;
+            }
+            
+            const txtDiv = document.createElement('div');
+            if (isGemini) txtDiv.innerHTML = '<i>模型思考中...</i>';
+            mainArea.appendChild(txtDiv);
+            chatCtx.contentBox = txtDiv;
+            chatCtx.mainArea = mainArea;
+            
+            assistantDiv.appendChild(mainArea);
+            chatContainer.appendChild(assistantDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            return chatCtx;
+        }
+
+        function finalizeStreamingDOM(ctx) {
+            ctx.isFinished = true;
+            if (ctx.thinkingBox && ctx.thinkingBox.innerHTML === '🤔 思考中...') {
+                ctx.thinkingBox.style.display = 'none';
+            }
+        }
+
+        chatCtx = createStreamingDOM();
+
+        try {
+            addLog('REQ', fetchBody);
+
+            const fetchOptions = {
+                method: 'POST',
+                headers: fetchHeaders,
+                body: JSON.stringify(fetchBody)
+            };
+            
+            // Allow cross-origin requests
+            fetchOptions.mode = 'cors';
+            fetchOptions.credentials = 'omit';
+
+            // Proxy URL if it's Gemini to bypass CORS
+            let finalFetchUrl = fetchUrl;
+            if (isGemini) {
+                finalFetchUrl = 'http://localhost:8080/proxy/' + fetchUrl;
+            }
+
+            const response = await fetch(finalFetchUrl, fetchOptions);
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                addLog('ERR', `Status: ${response.status}\n${errorText}`);
+                
+                let debugInfo = `状态码: ${response.status}<br>`;
+                debugInfo += `<div style="background: rgba(0,0,0,0.5); padding: 10px; border-radius: 8px; margin-top: 10px; font-family: monospace; font-size: 12px; white-space: pre-wrap; word-break: break-all;">`;
+                debugInfo += `<b style="color: #f87171;">[Response Error 返回错误]</b>\n${escapeHTML(errorText)}`;
+                debugInfo += `</div>`;
+                throw new Error(debugInfo);
+            }
+
+            let fullReasoning = "";
+            let fullContent = "";
+
+            function updateContent(ctx, diffStr) {
+                // 不使用 markdown 库的情况下进行简单分段处理
+                ctx.contentBox.innerHTML = escapeHTML(fullContent)
+                    .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+                    .replace(/\n/g, '<br>');
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            }
+
+            function updateThinking(ctx, diffStr) {
+                if (ctx.thinkingBox) {
+                    ctx.thinkingBox.innerHTML = `🤔 思考过程:<br>${escapeHTML(fullReasoning).replace(/\n/g, '<br>')}`;
+                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                }
+            }
+
+            if (isGemini) {
+                const textData = await response.text();
+                addLog('RES', `Gemini Response: ${textData.substring(0, 200)}...`);
+
+                // Check if it's SSE format (starts with data:)
+                if (textData.trim().startsWith('data:')) {
+                    const lines = textData.split('\n');
+                    for (let line of lines) {
+                        line = line.trim();
+                        if (line.startsWith('data:')) {
+                            const dataStr = line.substring(5).trim();
+                            if (dataStr) {
+                                try {
+                                    const parsed = JSON.parse(dataStr);
+                                    if (parsed.candidates && parsed.candidates.length > 0) {
+                                        const contentObj = parsed.candidates[0].content;
+                                        if (contentObj && contentObj.parts && contentObj.parts.length > 0) {
+                                            fullContent += contentObj.parts[0].text || "";
+                                        }
+                                    }
+                                } catch (e) {
+                                    console.warn('Stream chunk JSON parse warning:', e, line);
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    // Try parsing as normal JSON
+                    let responseData;
+                    try {
+                        responseData = JSON.parse(textData);
+                    } catch(e) {
+                        throw new Error("无法解析模型响应: " + textData);
+                    }
+                    
+                    if (Array.isArray(responseData)) {
+                        responseData.forEach(chunk => {
+                            if (chunk.candidates && chunk.candidates.length > 0) {
+                                const contentObj = chunk.candidates[0].content;
+                                if (contentObj && contentObj.parts && contentObj.parts.length > 0) {
+                                    fullContent += contentObj.parts[0].text || "";
+                                }
+                            }
+                        });
+                    } else {
+                        if (responseData.candidates && responseData.candidates.length > 0) {
+                            const contentObj = responseData.candidates[0].content;
+                            if (contentObj && contentObj.parts && contentObj.parts.length > 0) {
+                                fullContent = contentObj.parts[0].text || "";
+                            }
+                        } else if (responseData.choices && responseData.choices.length > 0) {
+                            fullContent = responseData.choices[0].message.content || "";
+                        } else if (responseData.error) {
+                            let errMsg = responseData.error.message || "未知错误";
+                            if (responseData.error.code == 429) {
+                                errMsg = `[429 Quota Exceeded] API 额度超限，请稍后重试或检查您的计费状态。\n详细信息: ${errMsg}`;
+                            }
+                            throw new Error(`模型返回错误: ${errMsg}`);
+                        } else {
+                            throw new Error("无法解析模型响应结构: " + textData);
+                        }
+                    }
+                }
+                updateContent(chatCtx, fullContent);
+            } else {
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder("utf-8");
+                let buffer = "";
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop(); // last line is possibly incomplete
+
+                    for (let line of lines) {
+                        line = line.trim();
+                        if (line.startsWith('data:')) {
+                            const dataStr = line.substring(5).trim();
+                            if (dataStr === '[DONE]') break;
+                            if (dataStr) {
+                                try {
+                                    const parsed = JSON.parse(dataStr);
+                                    if (parsed.choices && parsed.choices.length > 0) {
+                                        const delta = parsed.choices[0].delta;
+                                        if (delta) {
+                                            if (delta.reasoning_content) {
+                                                fullReasoning += delta.reasoning_content;
+                                                updateThinking(chatCtx, delta.reasoning_content);
+                                            }
+                                            if (delta.content) {
+                                                fullContent += delta.content;
+                                                updateContent(chatCtx, delta.content);
+                                            }
+                                        }
+                                    }
+                                } catch (e) {
+                                    console.warn('Stream chunk JSON parse warning:', e, line);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            finalizeStreamingDOM(chatCtx);
+            
+            let messageToSave = { "role": "assistant", "content": fullContent };
+            if (fullReasoning) messageToSave.reasoning_content = fullReasoning;
+            messageHistory.push(messageToSave);
+            
+            addLog('RES', `[Stream Ended Successfully] -> TextLength: ${fullContent.length} | ReasoningLength: ${fullReasoning.length}`);
+
+            // 触发自动播报流程
+            await executeTTSPlayback(fullContent, chatCtx);
+
+        } catch (err) {
+            finalizeStreamingDOM(chatCtx);
+            const errDiv = document.createElement('div');
+            errDiv.style.color = '#ef4444';
+            errDiv.style.marginTop = '10px';
+            errDiv.innerHTML = '⚠️ 请求断开或失败: ' + err.message;
+            chatCtx.mainArea.appendChild(errDiv);
+            messageHistory.pop(); // 回滚
+        } finally {
+            btn.disabled = false; micBtn.disabled = false; inputEl.disabled = false;
+            inputEl.focus(); // 自动恢复焦点，方便用户连续打字聊天
+        }
+    }
+
+    // --- 面板拖拽逻辑 ---
+    const debugPanel = document.getElementById('debugPanel');
+    const debugResizer = document.getElementById('debugResizer');
+    let isDraggingDebug = false;
+
+    debugResizer.addEventListener('mousedown', (e) => {
+        if (debugPanel.classList.contains('collapsed')) return;
+        isDraggingDebug = true;
+        debugResizer.classList.add('active');
+        document.body.style.cursor = 'ns-resize';
+        e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        if (!isDraggingDebug) return;
+        let newHeight = window.innerHeight - e.clientY;
+        if (newHeight < 100) newHeight = 100;
+        if (newHeight > window.innerHeight - 80) newHeight = window.innerHeight - 80;
+        debugPanel.style.height = newHeight + 'px';
+    });
+
+    document.addEventListener('mouseup', () => {
+        if (isDraggingDebug) {
+            isDraggingDebug = false;
+            debugResizer.classList.remove('active');
+            document.body.style.cursor = '';
+        }
+    });
+
+    // Initialize UI on boot
+    window.addEventListener('DOMContentLoaded', () => {
+        initData();
+    });
+</script>
+
+</body>
+</html>

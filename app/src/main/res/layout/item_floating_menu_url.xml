@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  悬浮球菜单顶部的当前网址。固定宽度 + 中间省略，
+  这样开头（域名/协议）和结尾（路径/文件名）都能看到，只省略中段。
+
+  用 singleLine 而不是 maxLines="1"：后者配 ellipsize="middle" 有已知崩溃路径。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="176dp"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingStart="10dp"
+    android:paddingEnd="12dp"
+    android:paddingTop="7dp"
+    android:paddingBottom="7dp">
+
+    <ImageView
+        android:layout_width="13dp"
+        android:layout_height="13dp"
+        android:src="@drawable/ic_globe_gray"
+        android:scaleType="fitCenter"
+        android:importantForAccessibility="no" />
+
+    <TextView
+        android:id="@+id/tvMenuUrl"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:layout_marginStart="8dp"
+        android:singleLine="true"
+        android:ellipsize="middle"
+        android:textSize="11sp"
+        android:textColor="@color/text_tertiary" />
+
+</LinearLayout>

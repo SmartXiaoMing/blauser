@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 12 以前的备份规则。这里是全排除 —— 与 allowBackup="false" 重复，
+  但 lint 要求显式写出来，同时把「什么都不备份」这个意图写在明面上。
+
+  Android 12 及以上的对应文件是 data_extraction_rules.xml。
+-->
+<full-backup-content>
+    <exclude domain="root" />
+    <exclude domain="file" />
+    <exclude domain="database" />
+    <exclude domain="sharedpref" />
+    <exclude domain="external" />
+</full-backup-content>

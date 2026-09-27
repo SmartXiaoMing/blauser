@@ -1,0 +1,21 @@
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
+// 依赖仓库集中在这里声明，模块里不再写 repositories。
+// FAIL_ON_PROJECT_REPOS 会让模块里偷偷加仓库的写法直接构建失败 ——
+// 这样「依赖从哪来」永远只有一处答案。
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+rootProject.name = "MobileBrowser"
+include ':app'

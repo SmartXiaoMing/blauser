@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  深色配色。token 与 values/colors.xml 一一对应，缺一个就会在那个位置落回
+  浅色值（在深色底上是刺眼的白块），所以增删 token 时两边一起改。
+-->
+<resources>
+
+    <!-- ===== 品牌 ===== -->
+    <!-- 品牌橙在深浅两种模式下都成立，保持不变 -->
+    <color name="brand">#FF6900</color>
+    <color name="brand_variant">#E05F00</color>
+    <color name="on_brand">#FFFFFF</color>
+    <color name="brand_stroke">#33FFFFFF</color>
+
+    <!-- ===== 表面 ===== -->
+    <!-- 不用纯黑：深灰配品牌橙比纯黑柔和，也和系统深色主题一致 -->
+    <color name="window_background">#121212</color>
+    <color name="surface">#1E1E1E</color>
+    <color name="surface_subtle">#262626</color>
+    <color name="input_background">#2A2A2A</color>
+    <color name="chip_inactive">#2A2A2A</color>
+
+    <!-- ===== 文字 ===== -->
+    <!-- 不用纯白：深色底上纯白会显得刺眼，E6 已经足够 -->
+    <color name="text_primary">#E6E6E6</color>
+    <color name="text_secondary">#A8A8A8</color>
+    <color name="text_tertiary">#8A8A8A</color>
+    <color name="text_quaternary">#757575</color>
+    <color name="text_faint">#6B6B6B</color>
+
+    <!-- ===== 线条 ===== -->
+    <color name="divider">#3A3A3A</color>
+    <color name="stroke">#3A3A3A</color>
+
+    <!-- ===== 图标 ===== -->
+    <color name="icon">#D0D0D0</color>
+    <color name="icon_muted">#8A8A8A</color>
+    <color name="icon_faint">#5A5A5A</color>
+
+    <!-- ===== 语义 ===== -->
+    <!-- 深色底上把红提亮一档，否则 #FF4444 对比度不够 -->
+    <color name="danger">#FF6B6B</color>
+    <!-- 深色模式下提亮，否则和窗口底色糊在一起 -->
+    <color name="incognito">#546E7A</color>
+
+</resources>

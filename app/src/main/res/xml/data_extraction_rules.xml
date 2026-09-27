@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 12 起 allowBackup/fullBackupContent 只管云备份，**管不住设备间迁移**
+  （换机时通过 D2D 直接搬过去）。要两种都关掉，必须显式写这份规则。
+
+  浏览器要关的理由见 AndroidManifest：应用数据目录里有 WebView 的 cookie /
+  localStorage，那是用户的登录态，不该跟着备份走。
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="root" />
+        <exclude domain="file" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="external" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="root" />
+        <exclude domain="file" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="external" />
+    </device-transfer>
+</data-extraction-rules>

@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- 网页请求摄像头 / 麦克风时用（onPermissionRequest）。不声明的话网页那边直接被拒 -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+
+    <!-- 网页请求定位时用（onGeolocationPermissionsShowPrompt） -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+    <!--
+      下载到公共「下载」目录。API 29 起 DownloadManager 自己走 MediaStore，不需要这个权限，
+      所以限定 maxSdkVersion，免得在商店里白白多一条敏感权限。
+    -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
+
+    <!--
+      required="false" 是必须的：不写的话 Play 会认为 App 依赖摄像头/麦克风/定位硬件，
+      把没有对应硬件的设备直接过滤掉。本 App 只是「网页要用时才申请」。
+    -->
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
+    <uses-feature android:name="android.hardware.location" android:required="false" />
+    <uses-feature android:name="android.hardware.location.gps" android:required="false" />
+
+    <application
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.MobileBrowser"
+        android:usesCleartextTraffic="true"
+        tools:ignore="UnusedAttribute">
+
+        <!--
+          allowBackup="false" 是刻意的：应用数据目录里除了标签状态和收藏，
+          还有 WebView 的 cookie / localStorage —— 打开备份等于把这些登录态
+          交给云备份和 adb backup。浏览器不该这样。
+
+          usesCleartextTraffic="true"：浏览器必须能开 http 站点，这条没法关。
+        -->
+
+        <!-- 主Activity -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="standard"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden|density|fontScale|locale|layoutDirection"
+            android:windowSoftInputMode="adjustResize">
+
+            <!--
+              configChanges 里刻意**没有** uiMode。
+              留着它的话，系统切深色时 Activity 不重建，App 自身的界面（新标签页、
+              对话框、悬浮球菜单）会一直停在旧配色上。让它重建才能正确换肤 ——
+              代价是当前标签页会重载一次，但 WebView 的前进后退历史由
+              onSaveInstanceState 保住了（见 MainActivity）。
+            -->
+
+            <!-- 桌面入口 -->
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!-- 注册为系统默认浏览器：处理 http/https URL -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <category android:name="android.intent.category.APP_BROWSER" />
+                <data android:scheme="http" />
+            </intent-filter>
+
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <category android:name="android.intent.category.APP_BROWSER" />
+                <data android:scheme="https" />
+            </intent-filter>
+
+            <!-- 兜底：处理其他 app 传来的 http/https deeplink，host 不限 -->
+            <!-- 注意：host="*" 在 Android 中无效，必须省略 host 或指定具体域名 -->
+            <!-- 只有 scheme + DEFAULT + BROWSABLE 才能正确接收任意 http/https deeplink -->
+            <!-- 上面两条（无 host）就是正确写法，此处无需重复 -->
+
+        </activity>
+    </application>
+
+</manifest>

@@ -1,0 +1,12 @@
+// 顶层构建文件。插件版本集中在这里，模块用 plugins { } 引用，不用写版本号。
+//
+// 这里刻意**不用** buildscript{classpath} 那套老写法：
+// 它需要在每个模块里重复声明，而且和 Gradle 的插件解析机制是两套体系。
+plugins {
+    id 'com.android.application' version '8.5.2' apply false
+    id 'org.jetbrains.kotlin.android' version '1.9.24' apply false
+}
+
+tasks.register('clean', Delete) {
+    delete rootProject.layout.buildDirectory
+}

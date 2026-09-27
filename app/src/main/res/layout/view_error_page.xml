@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  加载失败时的自定义错误页，盖在 WebView 之上。
+  用它替代 WebView 自带的那张 Android 系统错误页（"网页无法打开 / net::ERR_..."）。
+
+  不透明底色是必须的（@color/surface），它是覆盖层。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:background="@color/surface"
+    android:paddingStart="32dp"
+    android:paddingEnd="32dp"
+    android:visibility="gone">
+
+    <ImageView
+        android:layout_width="56dp"
+        android:layout_height="56dp"
+        android:src="@drawable/ic_warning"
+        android:scaleType="fitCenter"
+        android:contentDescription="@string/error_icon_desc" />
+
+    <TextView
+        android:id="@+id/tvErrorTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:textSize="17sp"
+        android:textStyle="bold"
+        android:textColor="@color/text_primary"
+        android:text="@string/error_title_load" />
+
+    <TextView
+        android:id="@+id/tvErrorReason"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:gravity="center"
+        android:textSize="13sp"
+        android:textColor="@color/text_secondary"
+        android:lineSpacingExtra="3dp" />
+
+    <!--
+      网址要「首尾可见、中间省略」，所以是 middle 省略。
+      注意这里必须用 singleLine 而不是 maxLines="1" —— 两者配 ellipsize="middle"
+      有已知的崩溃路径（lint 的 EllipsizeMaxLines 判定为 Error）。
+    -->
+    <TextView
+        android:id="@+id/tvErrorUrl"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:gravity="center"
+        android:singleLine="true"
+        android:ellipsize="middle"
+        android:textSize="11sp"
+        android:textColor="@color/text_tertiary" />
+
+    <TextView
+        android:id="@+id/tvErrorDetail"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:gravity="center"
+        android:maxLines="2"
+        android:ellipsize="end"
+        android:textSize="11sp"
+        android:textColor="@color/text_faint" />
+
+    <TextView
+        android:id="@+id/btnErrorRetry"
+        android:layout_width="wrap_content"
+        android:layout_height="42dp"
+        android:layout_marginTop="22dp"
+        android:paddingStart="34dp"
+        android:paddingEnd="34dp"
+        android:gravity="center"
+        android:text="@string/action_retry"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:textColor="@color/on_brand"
+        android:background="@drawable/bg_tab_active" />
+
+</LinearLayout>

@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  浅色配色。深色同名 token 在 values-night/colors.xml，两边必须成对出现 ——
+  只在一个文件里定义的颜色，在另一种模式下会解析失败或落回默认值。
+
+  命名按**用途**而不是按色值（surface / text_primary / icon），
+  这样改配色只动这两个文件，不用去翻 20 个布局。
+-->
+<resources>
+
+    <!-- ===== 品牌 ===== -->
+    <color name="brand">#FF6900</color>
+    <color name="brand_variant">#CC5500</color>
+    <!-- 铺在品牌色上的前景（按钮文字、角标文字） -->
+    <color name="on_brand">#FFFFFF</color>
+    <!-- 悬浮球上的半透明白描边 -->
+    <color name="brand_stroke">#33FFFFFF</color>
+
+    <!-- ===== 表面 ===== -->
+    <!-- 窗口底色：Activity 根布局、WebView 未铺满时露出的部分 -->
+    <color name="window_background">#F5F5F5</color>
+    <!-- 页面级背景：新标签页 / 错误页 / 对话框 / 菜单 -->
+    <color name="surface">#FFFFFF</color>
+    <!-- 表面上的次级区块，如收藏夹标题栏 -->
+    <color name="surface_subtle">#F8F8F8</color>
+    <color name="input_background">#F0F0F0</color>
+    <!-- 非活动标签 / 次要按钮 -->
+    <color name="chip_inactive">#EDEDED</color>
+
+    <!-- ===== 文字 ===== -->
+    <color name="text_primary">#333333</color>
+    <color name="text_secondary">#666666</color>
+    <color name="text_tertiary">#999999</color>
+    <color name="text_quaternary">#AAAAAA</color>
+    <color name="text_faint">#BBBBBB</color>
+
+    <!-- ===== 线条 ===== -->
+    <color name="divider">#DDDDDD</color>
+    <color name="stroke">#E0E0E0</color>
+
+    <!-- ===== 图标 ===== -->
+    <!-- 菜单项等主要图标 -->
+    <color name="icon">#555555</color>
+    <!-- 次要图标，如地址栏前的地球 -->
+    <color name="icon_muted">#999999</color>
+    <!-- 大面积装饰性图标，如错误页的感叹号 -->
+    <color name="icon_faint">#CCCCCC</color>
+
+    <!-- ===== 语义 ===== -->
+    <color name="danger">#FF4444</color>
+    <!-- 无痕模式下悬浮球的颜色：刻意和品牌橙拉开距离，让「我现在在无痕浏览」一眼可见 -->
+    <color name="incognito">#37474F</color>
+
+</resources>
