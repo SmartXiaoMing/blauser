@@ -56,6 +56,14 @@ object WebViewFactory {
 
         fun onTitle(title: String)
 
+        /**
+         * 主文档**即将**开始加载（可能还没发请求）。
+         *
+         * 用来按目标网址重设那些「必须在请求发出前生效」的东西：UserAgent、屏幕方向。
+         * 只在 [onPageStarted] 里设是不够的 —— 那时请求已经发出去了。
+         */
+        fun onBeforeNavigate(url: String)
+
         /** 主文档加载失败（域名解析不了、连不上、超时等） */
         fun onPageError(error: PageError)
 
@@ -200,6 +208,11 @@ object WebViewFactory {
         wv.webViewClient = object : WebViewClient() {
 
             override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
+                // 兜底：有些导航不走 shouldOverrideUrlLoading（表单提交、服务端重定向、
+                // JS 跳转），等走到这里请求已经发出去了，但至少让页面内的后续请求
+                // （XHR、子资源）和 navigator.userAgent 是新站点的
+                cb.onBeforeNavigate(url)
+
                 // 尽早注入，争取赶在页面 <head> 内脚本之前
                 PageScaler.inject(view, resolver.pageWidthFor(url), resolver.languageFor(url))
                 cb.onPageStarted(url)
@@ -227,8 +240,12 @@ object WebViewFactory {
 
             private fun handleUrl(uri: Uri, hasGesture: Boolean): Boolean {
                 val scheme = uri.scheme ?: return false
-                // http/https 就地导航
-                if (UrlHelper.isHttpScheme(scheme)) return false
+                if (UrlHelper.isHttpScheme(scheme)) {
+                    // http/https 就地导航。**请求发出之前**先把该站点要用的
+                    // UA / 屏幕方向设好 —— 跨站点跳转时它们和上一页是不一样的
+                    cb.onBeforeNavigate(uri.toString())
+                    return false
+                }
                 return cb.onExternalScheme(uri, hasGesture)
             }
 

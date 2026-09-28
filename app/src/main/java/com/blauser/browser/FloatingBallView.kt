@@ -154,8 +154,11 @@ class FloatingBallView(
 
     private var menu: PopupWindow? = null
 
-    /** 当前是否贴左边缘；用于避免拖动过程中反复换背景 */
-    private var onLeftEdge: Boolean? = null
+    /** 当前用的形状资源；用于避免拖动过程中反复换背景。0 表示还没设过 */
+    private var shapeRes: Int = 0
+
+    /** 上一次已知的方向；null 表示还没量过。用来在旋转后重新贴边 */
+    private var wasLandscape: Boolean? = null
 
     /**
      * 无痕模式。悬浮球是整个界面上唯一的常驻控件，它也是唯一能承载
@@ -189,7 +192,7 @@ class FloatingBallView(
     fun attach() {
         parent.addView(
             this,
-            FrameLayout.LayoutParams(dp(BALL_WIDTH_DP), dp(BALL_HEIGHT_DP)).apply {
+            FrameLayout.LayoutParams(dp(ballWidthDp()), dp(ballHeightDp())).apply {
                 gravity = Gravity.TOP or Gravity.START
             }
         )
@@ -206,12 +209,47 @@ class FloatingBallView(
     }
 
     private val layoutClampListener = View.OnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+        // 顺序有讲究：先换宽高，后面的 maxX/maxY 才是对的
+        applyBallSizeIfNeeded()
         val nx = x.coerceIn(0f, maxX())
         val ny = y.coerceIn(minY(), maxY())
         // 只在真的越界时才赋值，避免自己触发自己的布局回调
         if (nx != x) x = nx
         if (ny != y) y = ny
+
+        // 竖横屏切换后，原来贴的那条边已经不是长边了，重新贴一次；
+        // 否则球会停在屏幕中间（旧坐标在两个方向上都不靠边）
+        val landscape = isLandscape()
+        if (wasLandscape != null && wasLandscape != landscape) {
+            snapToEdge()
+            savePosition()
+        }
+        wasLandscape = landscape
+
         updateBallShape()
+    }
+
+    /**
+     * 横屏时把球横过来（56dp 宽 × 32dp 高），因为它要贴的是上下边。
+     *
+     * 用「宽 > 高」判断而不是读 Configuration.orientation：分屏下窗口本身可能是
+     * 横的而系统仍是竖屏，按窗口实际形状判断才不会贴错边。
+     */
+    private fun isLandscape(): Boolean = parent.width > parent.height
+
+    private fun ballWidthDp(): Float = if (isLandscape()) BALL_HEIGHT_DP else BALL_WIDTH_DP
+
+    private fun ballHeightDp(): Float = if (isLandscape()) BALL_WIDTH_DP else BALL_HEIGHT_DP
+
+    /** 旋转 / 分屏后窗口形状变了，球的宽高要跟着换 */
+    private fun applyBallSizeIfNeeded() {
+        val wantW = dp(ballWidthDp())
+        val wantH = dp(ballHeightDp())
+        val lp = layoutParams ?: return
+        if (lp.width == wantW && lp.height == wantH) return
+        lp.width = wantW
+        lp.height = wantH
+        layoutParams = lp
     }
 
     /** 刘海高度变化（旋转、换屏、进入分屏）时调用 */
@@ -226,14 +264,25 @@ class FloatingBallView(
     /** 球能停的最上面。父容器太矮时退化成 0，别把 coerceIn 的区间搞反 */
     private fun minY(): Float = safeTop.toFloat().coerceAtMost(maxY())
 
-    /** 贴左边缘用右侧圆弧的形状，贴右边缘反之 */
+    /**
+     * 换球的形状，让它看起来是从所在的那条边「探出来」的。
+     *
+     * 半球贴在**长边**上：竖屏是左右，横屏是上下 —— 把手顺着长边伸出去，
+     * 占的是短边方向的空间，才不会把内容挤扁。
+     */
     private fun updateBallShape() {
-        val onLeft = x + width / 2f < parent.width / 2f
-        if (onLeftEdge == onLeft) return
-        onLeftEdge = onLeft
-        setBackgroundResource(
+        val res = if (isLandscape()) {
+            // 横屏贴上下：在上半屏就贴上边（上平下圆），反之贴下边
+            val onTop = y + ballH() / 2f < parent.height / 2f
+            if (onTop) R.drawable.bg_ball_half_bottom else R.drawable.bg_ball_half_top
+        } else {
+            // 竖屏贴左右：在左半屏就贴左边（左平右圆），反之贴右边
+            val onLeft = x + ballW() / 2f < parent.width / 2f
             if (onLeft) R.drawable.bg_ball_half_right else R.drawable.bg_ball_half_left
-        )
+        }
+        if (shapeRes == res) return
+        shapeRes = res
+        setBackgroundResource(res)
         // setBackgroundResource 会清掉 tint，换形状后必须重新染一次
         applyBallTint()
     }
@@ -396,7 +445,10 @@ class FloatingBallView(
         }
         // 顶部也别越界
         py = py.coerceAtLeast(loc[1] + dp(4f))
-        px = px.coerceIn(dp(8f), (loc[0] + parent.width - mw - dp(8f)))
+        // 菜单比窗口还宽时（分屏、极窄窗口）coerceIn 的区间会反过来直接抛异常，
+        // 这里退化成「贴着左边显示」，宁可超出也比崩掉强
+        val maxPx = loc[0] + parent.width - mw - dp(8f)
+        px = if (maxPx >= dp(8f)) px.coerceIn(dp(8f), maxPx) else dp(8f)
 
         popup.showAtLocation(parent, Gravity.NO_GRAVITY, px, py)
         menu = popup
@@ -424,13 +476,30 @@ class FloatingBallView(
 
     // ==================== 位置 ====================
 
-    private fun maxX() = (parent.width - width).coerceAtLeast(0).toFloat()
-    private fun maxY() = (parent.height - height).coerceAtLeast(0).toFloat()
+    /**
+     * 球的宽高。
+     *
+     * **优先读 LayoutParams 而不是 view.width/height**：横竖屏切换时我们刚改完
+     * LayoutParams，而 View 的 width/height 要等下一次布局才更新。在那之前用它算
+     * maxX/maxY 会得到上一方向的旧值，贴边就会差一截（实测横屏转竖屏后停在
+     * x=933 而不是 996，差的正好是两种宽度之差）。
+     */
+    private fun ballW(): Int = layoutParams?.width ?: width
+    private fun ballH(): Int = layoutParams?.height ?: height
+
+    private fun maxX() = (parent.width - ballW()).coerceAtLeast(0).toFloat()
+    private fun maxY() = (parent.height - ballH()).coerceAtLeast(0).toFloat()
 
     /** 松手后贴边，别停在屏幕正中间挡内容 */
     private fun snapToEdge() {
-        val target = if (x + width / 2f < parent.width / 2f) 0f else maxX()
-        animate().x(target).setDuration(150).start()
+        if (isLandscape()) {
+            // 横屏贴上下。用 minY() 而不是 0：球贴在顶边时不能钻进刘海
+            val target = if (y + ballH() / 2f < parent.height / 2f) minY() else maxY()
+            animate().y(target).setDuration(150).start()
+        } else {
+            val target = if (x + ballW() / 2f < parent.width / 2f) 0f else maxX()
+            animate().x(target).setDuration(150).start()
+        }
         // 动画结束后朝向才最终确定
         postDelayed({ updateBallShape() }, 180)
     }
@@ -445,12 +514,17 @@ class FloatingBallView(
     private fun restorePosition() {
         val saved = SettingsManager.getBallPosition(host)
         if (saved == null) {
-            // 首次启动：默认停在右侧偏下，避开常见的内容区
-            x = maxX()
-            y = maxY() * 0.6f
+            // 首次启动：停在屏幕下半 / 偏一侧，避开常见的内容区
+            if (isLandscape()) {
+                x = maxX() * 0.6f
+                y = maxY()
+            } else {
+                x = maxX()
+                y = maxY() * 0.6f
+            }
         } else {
             x = saved.first.coerceIn(0f, maxX())
-            // 上次保存的位置可能来自没有刘海的横屏（或反过来），这里重新钳一次
+            // 上次保存的位置可能来自另一种方向（或没有刘海的横屏），重新钳一次
             y = saved.second.coerceIn(minY(), maxY())
         }
         updateBallShape()

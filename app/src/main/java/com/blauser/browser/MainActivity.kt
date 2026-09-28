@@ -406,6 +406,24 @@ class MainActivity : AppCompatActivity(),
 
     // ==================== WebViewFactory.Callbacks ====================
 
+    /**
+     * 主文档即将加载：按**目标站点**重设 UserAgent 与屏幕方向。
+     *
+     * 这两项必须在请求发出之前设好，而它们又是按域名解析的 —— 从 A 站点点链接跳到 B 站点时
+     * 得重新算一遍。只在 loadUrl() 里设的话，就只有初次加载和开新标签才会生效，
+     * 同标签内跳转到别的站点会一直沿用上一个站点的 UA。
+     */
+    override fun onBeforeNavigate(url: String) {
+        if (!UrlHelper.isWebUrl(url)) return
+        val wv = webView ?: return
+        val resolved = resolveFor(url)
+        // 只在真的变了时才写，避免每次导航都往 native 层写一次
+        if (wv.settings.userAgentString != resolved.userAgent) {
+            wv.settings.userAgentString = resolved.userAgent
+        }
+        applyOrientation(resolved.orientation)
+    }
+
     override fun onPageStarted(url: String) {
         binding.progressBar.visibility = View.VISIBLE
         binding.progressBar.progress = 0
