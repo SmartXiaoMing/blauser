@@ -1,4 +1,4 @@
-# 移动浏览器项目
+# blauser
 
 > 功能说明、设计取舍、调试技巧都在 [README.md](README.md)。
 > 这份文件只放「开工前扫一眼」的速查信息，刻意不重复 README 的内容 ——
@@ -6,7 +6,7 @@
 
 ## 项目信息
 
-- **名称**：移动浏览器（Mobile Browser）
+- **名称**：blauser
 - **包名 / applicationId**：`com.blauser.browser`
 - **目录**：`/Users/mi/work/src/blauser/`
 - **目的**：将任意 PC 网页自动缩放适配到手机屏幕，无需修改网站代码

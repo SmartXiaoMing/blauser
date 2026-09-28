@@ -11,8 +11,6 @@
 -->
 <resources>
 
-    <string name="app_name">Blauser</string>
-
     <!-- ==================== Common actions ==================== -->
     <string name="action_go">Go</string>
     <string name="action_save">Save</string>

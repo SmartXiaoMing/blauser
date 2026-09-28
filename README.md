@@ -1,4 +1,4 @@
-# 移动浏览器 · Blauser
+# blauser
 
 > 让 PC 网页在手机上真正能用。
 
