@@ -48,6 +48,24 @@ object WebViewFactory {
 
         /** 虚拟屏幕模式下按视图尺寸反算的缩放比；null 表示按屏宽自动算 */
         fun pageScaleFor(url: String): Float?
+
+        /** 是否允许用户缩放（捏合 / 双击）。注入的 viewport 要跟着写 user-scalable */
+        fun userScalableFor(url: String): Boolean
+    }
+
+    /**
+     * 应用缩放开关。
+     *
+     * **两个开关必须按同一个值设**：`setSupportZoom` 管双击缩放，
+     * `setBuiltInZoomControls` 管双指捏合 —— 只关一个的话，另一种手势照样能缩放。
+     *
+     * 构造 WebView 和用户改设置时都走这里，避免两处写法不一致。
+     */
+    fun applyZoomSetting(webView: WebView, enabled: Boolean) {
+        webView.settings.setSupportZoom(enabled)
+        webView.settings.builtInZoomControls = enabled
+        // 即使允许缩放也不显示那对 +/- 悬浮按钮，太挡内容
+        webView.settings.displayZoomControls = false
     }
 
     interface Callbacks {
@@ -171,9 +189,9 @@ object WebViewFactory {
             domStorageEnabled = true
             useWideViewPort = true          // 启用宿主视口
             loadWithOverviewMode = true     // 缩放适屏
-            setSupportZoom(true)
-            builtInZoomControls = true
-            displayZoomControls = false     // 隐藏缩放控制按钮
+            // 缩放默认关闭：页面本身已经按屏幕适配过，手势缩放多半是误触。
+            // 用户可以从悬浮球菜单里打开
+            applyZoomSetting(wv, SettingsManager.isZoomEnabled(activity))
             cacheMode = WebSettings.LOAD_DEFAULT
             userAgentString = SettingsManager.resolveUserAgent(activity)
 
@@ -221,7 +239,8 @@ object WebViewFactory {
                     resolver.pageWidthFor(url),
                     resolver.languageFor(url),
                     resolver.pageHeightFor(url),
-                    resolver.pageScaleFor(url)
+                    resolver.pageScaleFor(url),
+                    resolver.userScalableFor(url)
                 )
             }
 

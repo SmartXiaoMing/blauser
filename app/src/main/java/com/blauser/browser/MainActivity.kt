@@ -470,6 +470,8 @@ class MainActivity : AppCompatActivity(),
 
     override fun pageScaleFor(url: String): Float? = computeRenderBox(resolveFor(url))?.scale
 
+    override fun userScalableFor(url: String): Boolean = SettingsManager.isZoomEnabled(this)
+
     private fun persistState() {
         TabRegistry.saveState(this, tabKey, currentUrl, currentTitle, isIncognito)
     }
@@ -875,6 +877,7 @@ class MainActivity : AppCompatActivity(),
             FloatingBallView.MenuAction.BACK -> webView?.takeIf { it.canGoBack() }?.goBack()
             FloatingBallView.MenuAction.FORWARD -> webView?.takeIf { it.canGoForward() }?.goForward()
             FloatingBallView.MenuAction.REFRESH -> webView?.reload()
+            FloatingBallView.MenuAction.TOGGLE_ZOOM -> toggleZoom()
             FloatingBallView.MenuAction.HOME -> goToNewTabPage()
             FloatingBallView.MenuAction.NEW_INCOGNITO -> openNewTab(null, incognito = true)
             FloatingBallView.MenuAction.HISTORY ->
@@ -907,6 +910,29 @@ class MainActivity : AppCompatActivity(),
             }
             FloatingBallView.MenuAction.DEVTOOLS -> PageActions.showDevTools(this, currentUrl)
         }
+    }
+
+    /**
+     * 切换缩放开关。
+     *
+     * WebSettings 立刻生效，不用重建 WebView；但已经注入的 viewport 里那句
+     * `user-scalable` 是页面级声明，得重新注入一次才能同步（不影响页面内容）。
+     */
+    private fun toggleZoom() {
+        val enabled = !SettingsManager.isZoomEnabled(this)
+        SettingsManager.setZoomEnabled(this, enabled)
+        webView?.let {
+            WebViewFactory.applyZoomSetting(it, enabled)
+            PageScaler.inject(
+                it,
+                pageWidthFor(currentUrl),
+                languageFor(currentUrl),
+                pageHeightFor(currentUrl),
+                pageScaleFor(currentUrl),
+                enabled
+            )
+        }
+        toast(getString(if (enabled) R.string.toast_zoom_enabled else R.string.toast_zoom_disabled))
     }
 
     // ==================== 设置的应用与重载 ====================
@@ -952,6 +978,8 @@ class MainActivity : AppCompatActivity(),
 
     override fun isCurrentBookmarked(): Boolean =
         currentUrl.isNotBlank() && BookmarkManager.contains(this, currentUrl)
+
+    override fun isZoomEnabled(): Boolean = SettingsManager.isZoomEnabled(this)
 
     // ==================== 新标签页 ====================
 

@@ -24,6 +24,9 @@ object SettingsManager {
     private const val KEY_BALL_X = "ball_x"
     private const val KEY_BALL_Y = "ball_y"
 
+    /** 是否允许用户缩放（捏合 / 双击）。默认关：刷网页时误触缩放很烦 */
+    private const val KEY_ZOOM_ENABLED = "zoom_enabled"
+
     /** 带文案的整数选项，页面宽度与屏幕方向共用一套结构 */
     data class IntOption(val value: Int, @StringRes val labelRes: Int)
 
@@ -199,6 +202,20 @@ object SettingsManager {
         }
         return resolveUserAgent(c)
     }
+
+    // ===== 缩放开关 =====
+
+    /**
+     * 允许用户缩放（双指捏合 / 双击）。
+     *
+     * **默认关闭**：这个 App 的定位是把 PC 页面整体缩放贴合屏幕，页面本身就是
+     * 按屏幕适配过的，再叠加手势缩放大多是误触。需要看清细节时再从菜单里打开。
+     */
+    fun isZoomEnabled(c: Context): Boolean =
+        prefs(c).getBoolean(KEY_ZOOM_ENABLED, false)
+
+    fun setZoomEnabled(c: Context, enabled: Boolean) =
+        prefs(c).edit().putBoolean(KEY_ZOOM_ENABLED, enabled).apply()
 
     // ===== 悬浮球位置 =====
 

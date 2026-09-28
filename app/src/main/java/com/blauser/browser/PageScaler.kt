@@ -20,11 +20,21 @@ object PageScaler {
         pageWidth: Int,
         language: String? = null,
         pageHeight: Int = 0,
-        scale: Float? = null
+        scale: Float? = null,
+        userScalable: Boolean = true
     ) {
-        scriptFor(pageWidth, language, pageHeight, scale)
+        scriptFor(pageWidth, language, pageHeight, scale, userScalable)
             ?.let { view.evaluateJavascript(it, null) }
     }
+
+    /**
+     * viewport 里的 `user-scalable` 取值。
+     *
+     * 这只是「告诉页面别允许缩放」的声明，真正拦住手势的是 WebSettings 的
+     * setSupportZoom / setBuiltInZoomControls（见 MainActivity.applyZoomSetting）。
+     * 两边都设是为了让页面自己的 JS 判断（`window.visualViewport.scale` 之类）也一致。
+     */
+    private fun scalableLiteral(enabled: Boolean) = if (enabled) "yes" else "no"
 
     /**
      * 按配置生成要注入的脚本；返回 null 表示这个组合下什么都不用做。
@@ -39,20 +49,22 @@ object PageScaler {
         pageWidth: Int,
         language: String?,
         pageHeight: Int = 0,
-        scale: Float? = null
+        scale: Float? = null,
+        userScalable: Boolean = true
     ): String? {
         val lang = language?.takeIf { it.isNotBlank() }
+        val scalable = scalableLiteral(userScalable)
 
         // 虚拟屏幕模式：固定宽度 + 高度 + 明确的缩放比，三者缺一不可
         if (pageHeight > 0 && scale != null && scale > 0f && pageWidth > 0) {
-            return virtualScreenScript(pageWidth, scale, lang)
+            return virtualScreenScript(pageWidth, scale, lang, scalable)
         }
 
         return when (pageWidth) {
             // 跟随手机屏：只在设了语言时才需要注入（伪装 navigator.language）
             SettingsManager.WIDTH_FOLLOW_DEVICE -> lang?.let { languageScript(it) }
-            SettingsManager.WIDTH_AUTO -> autoScript(lang)
-            else -> forceScript(pageWidth, lang)
+            SettingsManager.WIDTH_AUTO -> autoScript(lang, scalable)
+            else -> forceScript(pageWidth, lang, scalable)
         }
     }
 
@@ -65,7 +77,7 @@ object PageScaler {
      *  - `initial-scale` 用调用方算好的值（按视图实际尺寸反推），而不是 `realW / W` ——
      *    因为留白时视图宽度不等于屏宽。
      */
-    private fun virtualScreenScript(w: Int, scale: Float, lang: String?): String {
+    private fun virtualScreenScript(w: Int, scale: Float, lang: String?, scalable: String): String {
         // 别让 Float.toString 在极小值上吐科学计数法，那会变成非法的 CSS 数值
         val scaleLiteral = java.lang.String.format(java.util.Locale.ROOT, "%.6f", scale)
         return """
@@ -91,7 +103,7 @@ object PageScaler {
                 meta.setAttribute('content',
                     'width=' + W +
                     ', initial-scale=$scaleLiteral' +
-                    ', maximum-scale=5.0, minimum-scale=0.1, user-scalable=yes');
+                    ', maximum-scale=5.0, minimum-scale=0.1, user-scalable=$scalable');
             })();
         """.trimIndent()
     }
@@ -122,7 +134,7 @@ object PageScaler {
      * onPageFinished 各注入一次，第二次注入时 `screen.width` 已经是伪装值了，
      * 必须用缓存值，否则 scale 会算成 1 导致页面被放大。
      */
-    private fun forceScript(w: Int, lang: String?): String = """
+    private fun forceScript(w: Int, lang: String?, scalable: String): String = """
         (function() {
             ${languagePrologue(lang)}
             var W = $w;
@@ -159,7 +171,7 @@ object PageScaler {
             meta.setAttribute('content',
                 'width=' + target +
                 ', initial-scale=' + (realW / target) +
-                ', maximum-scale=5.0, minimum-scale=0.1, user-scalable=yes');
+                ', maximum-scale=5.0, minimum-scale=0.1, user-scalable=$scalable');
         })();
     """.trimIndent()
 
@@ -169,11 +181,15 @@ object PageScaler {
      * 之所以挂在 DOMContentLoaded 而不是 onPageStarted：onPageStarted 时 `<head>` 还没解析，
      * 读不到 viewport meta。挂在 DOMContentLoaded 比 onPageFinished 早得多，能明显减少重排闪烁。
      */
-    private fun autoScript(lang: String?): String = """
+    private fun autoScript(lang: String?, scalable: String): String = """
         (function() {
             ${languagePrologue(lang)}
-            if (window.__blauserAutoHooked) return;
-            window.__blauserAutoHooked = true;
+
+            // 判重用的是「本次的 user-scalable 值」，而不是一个布尔钩子。
+            // 布尔钩子会把「切换缩放开关后重新应用」也一起挡掉 ——
+            // 参数没变才跳过，变了就得重跑一次 decide()。
+            if (window.__blauserScalable === "$scalable") return;
+            window.__blauserScalable = "$scalable";
 
             var PC_WIDTH = ${SettingsManager.AUTO_PC_WIDTH};
 
@@ -205,7 +221,7 @@ object PageScaler {
                 meta.setAttribute('content',
                     'width=' + target +
                     ', initial-scale=' + (realW / target) +
-                    ', maximum-scale=5.0, minimum-scale=0.1, user-scalable=yes');
+                    ', maximum-scale=5.0, minimum-scale=0.1, user-scalable=$scalable');
             }
 
             function decide() {
@@ -217,7 +233,12 @@ object PageScaler {
             }
 
             if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', decide);
+                // DOMContentLoaded 监听只挂一次；但每次注入都要把 decide 跑一遍
+                // 已经过了在这个时机的场景（切开关时页面早就加载完了）
+                if (!window.__blauserAutoHooked) {
+                    window.__blauserAutoHooked = true;
+                    document.addEventListener('DOMContentLoaded', decide);
+                }
             } else {
                 decide();
             }

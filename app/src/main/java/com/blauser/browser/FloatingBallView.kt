@@ -58,6 +58,7 @@ class FloatingBallView(
         BACK,
         FORWARD,
         REFRESH,
+        TOGGLE_ZOOM,
         HOME,
         NEW_INCOGNITO,
         TOGGLE_BOOKMARK,
@@ -81,6 +82,9 @@ class FloatingBallView(
         fun canGoBack(): Boolean
         fun canGoForward(): Boolean
         fun isCurrentBookmarked(): Boolean
+
+        /** 缩放开关的当前状态。菜单项是个开关，得让用户看出现在是开还是关 */
+        fun isZoomEnabled(): Boolean
     }
 
     private data class MenuRow(
@@ -117,6 +121,14 @@ class FloatingBallView(
         MenuRow(MenuAction.FORWARD, R.drawable.ic_forward, R.string.menu_forward,
             enabledWhen = { it.canGoForward() }),
         MenuRow(MenuAction.REFRESH, R.drawable.ic_refresh, R.string.menu_refresh),
+        MenuRow(
+            MenuAction.TOGGLE_ZOOM, R.drawable.ic_zoom, R.string.menu_zoom_off,
+            // 图标不变，靠文字带出当前状态 —— 开关只写名字看不出开还是关
+            dynamic = { sp ->
+                R.drawable.ic_zoom to
+                    if (sp.isZoomEnabled()) R.string.menu_zoom_on else R.string.menu_zoom_off
+            }
+        ),
         MenuRow(MenuAction.HOME, R.drawable.ic_home, R.string.menu_home, dividerBefore = true),
         MenuRow(MenuAction.NEW_INCOGNITO, R.drawable.ic_incognito, R.string.menu_incognito,
             visibleWhen = { Incognito.isSupported }),

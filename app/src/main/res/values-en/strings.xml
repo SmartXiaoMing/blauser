@@ -54,6 +54,11 @@
     <string name="menu_history">History</string>
     <string name="menu_incognito">New incognito tab</string>
 
+    <string name="menu_zoom_off">Allow zoom · Off</string>
+    <string name="menu_zoom_on">Allow zoom · On</string>
+    <string name="toast_zoom_enabled">Zooming enabled: pinch or double-tap to zoom</string>
+    <string name="toast_zoom_disabled">Zooming disabled</string>
+
     <!-- ==================== History ==================== -->
     <string name="history_title">History</string>
     <string name="history_empty">No history</string>

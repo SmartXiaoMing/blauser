@@ -52,6 +52,15 @@
     <string name="menu_history">历史记录</string>
     <string name="menu_incognito">新建无痕标签</string>
 
+    <!--
+      缩放开关。菜单项文字带着当前状态 —— 它是个开关，
+      光看「允许缩放」四个字看不出现在是开还是关。
+    -->
+    <string name="menu_zoom_off">允许缩放 · 已关闭</string>
+    <string name="menu_zoom_on">允许缩放 · 已开启</string>
+    <string name="toast_zoom_enabled">已允许缩放：双指或双击可以放大缩小</string>
+    <string name="toast_zoom_disabled">已禁止缩放</string>
+
     <!-- ==================== 历史记录 ==================== -->
     <string name="history_title">历史记录</string>
     <string name="history_empty">暂无历史</string>

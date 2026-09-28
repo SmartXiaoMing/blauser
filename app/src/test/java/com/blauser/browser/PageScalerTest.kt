@@ -116,6 +116,42 @@ class PageScalerTest {
         assertTrue(script.contains("initial-scale=0.320000"))
     }
 
+    // ==================== 缩放开关 ====================
+
+    @Test
+    fun `禁止缩放时三种模式都写 user-scalable=no`() {
+        // 固定宽度模式
+        val forced = PageScaler.scriptFor(1280, null, userScalable = false)!!
+        assertTrue("固定宽度模式", forced.contains("user-scalable=no"))
+
+        // 自动模式
+        val auto = PageScaler.scriptFor(SettingsManager.WIDTH_AUTO, null, userScalable = false)!!
+        assertTrue("自动模式", auto.contains("user-scalable=no"))
+
+        // 虚拟屏幕模式
+        val virtual = PageScaler.scriptFor(
+            1280, null, pageHeight = 720, scale = 0.3f, userScalable = false
+        )!!
+        assertTrue("虚拟屏幕模式", virtual.contains("user-scalable=no"))
+    }
+
+    @Test
+    fun `允许缩放时写 user-scalable=yes`() {
+        val script = PageScaler.scriptFor(1280, null, userScalable = true)!!
+        assertTrue(script.contains("user-scalable=yes"))
+    }
+
+    @Test
+    fun `缩放开关不影响 initial-scale`() {
+        // 关掉用户缩放不能连我们自己的整体缩放一起关掉 ——
+        // maximum-scale 保持 5.0，initial-scale 照常写
+        val script = PageScaler.scriptFor(
+            1280, null, pageHeight = 720, scale = 0.32f, userScalable = false
+        )!!
+        assertTrue(script.contains("initial-scale=0.320000"))
+        assertTrue(script.contains("maximum-scale=5.0"))
+    }
+
     @Test
     fun `语言里的引号被转义不会破坏脚本`() {
         // 语言是用户手填的，直接拼进 JS 字符串会让脚本语法错误甚至注入
