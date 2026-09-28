@@ -152,6 +152,20 @@
             android:importantForAutofill="no"
             android:hint="@string/settings_language_hint" />
 
+        <!-- ===== 搜索引擎 ===== -->
+        <TextView
+            style="@style/SettingsLabel"
+            android:text="@string/settings_search" />
+
+        <Spinner
+            android:id="@+id/spSearch"
+            android:layout_width="match_parent"
+            android:layout_height="44dp" />
+
+        <TextView
+            style="@style/SettingsHint"
+            android:text="@string/settings_search_hint" />
+
         <TextView
             style="@style/SettingsHint"
             android:layout_marginTop="16dp"

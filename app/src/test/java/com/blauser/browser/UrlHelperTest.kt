@@ -120,6 +120,30 @@ class UrlHelperTest {
         assertEquals("https://www.baidu.com/s?wd=hello+world", UrlHelper.searchUrl("hello world"))
     }
 
+    @Test
+    fun `searchUrl 支持传入搜索引擎模板`() {
+        assertEquals(
+            "https://www.google.com/search?q=hello+world",
+            UrlHelper.searchUrl("hello world", "https://www.google.com/search?q=%s")
+        )
+    }
+
+    @Test
+    fun `smartUrl 的搜索分支走传入的模板`() {
+        val google = "https://www.google.com/search?q=%s"
+        // 不像网址的输入
+        assertTrue(
+            UrlHelper.smartUrl("hello world", google).startsWith("https://www.google.com/search?q=")
+        )
+        // 被拒掉的 file: 也走搜索分支，同样要用传入的模板
+        assertTrue(
+            UrlHelper.smartUrl("file:///etc/hosts", google)
+                .startsWith("https://www.google.com/search?q=")
+        )
+        // 像网址的输入不受模板影响
+        assertEquals("https://a.com", UrlHelper.smartUrl("a.com", google))
+    }
+
     /**
      * isWebUrl 是**安全边界**，不只是格式校验：intent:// 的 browser_fallback_url
      * 完全由网页控制，放行 javascript: 会让它在本页上下文里执行脚本，

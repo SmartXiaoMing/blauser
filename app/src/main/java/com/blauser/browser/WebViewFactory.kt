@@ -189,9 +189,9 @@ object WebViewFactory {
             domStorageEnabled = true
             useWideViewPort = true          // 启用宿主视口
             loadWithOverviewMode = true     // 缩放适屏
-            // 缩放默认关闭：页面本身已经按屏幕适配过，手势缩放多半是误触。
-            // 用户可以从悬浮球菜单里打开
-            applyZoomSetting(wv, SettingsManager.isZoomEnabled(activity))
+            // 先按「不允许缩放」建。缩放是按网站走的，真正的值等导航开始时
+            // 由 MainActivity.applyRequestSettings 按目标域名应用
+            applyZoomSetting(wv, false)
             cacheMode = WebSettings.LOAD_DEFAULT
             userAgentString = SettingsManager.resolveUserAgent(activity)
 

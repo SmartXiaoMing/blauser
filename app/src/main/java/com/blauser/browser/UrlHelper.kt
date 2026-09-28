@@ -10,8 +10,8 @@ import java.net.URLEncoder
  */
 object UrlHelper {
 
-    /** 搜索URL模板，%s 会被替换成编码后的关键词 */
-    private const val SEARCH_TEMPLATE = "https://www.baidu.com/s?wd=%s"
+    /** 默认搜索模板。实际用的是全局设置里选的那个（见 SettingsManager.SEARCH_ENGINES） */
+    const val DEFAULT_SEARCH_TEMPLATE = "https://www.baidu.com/s?wd=%s"
 
     /**
      * 唯一放行的本地路径前缀。
@@ -58,8 +58,8 @@ object UrlHelper {
      * 两者对中文等非 ASCII 的编码结果一致，只有空格一个是 %20 一个是 +，
      * 放在查询串里都合法。
      */
-    fun searchUrl(query: String): String =
-        SEARCH_TEMPLATE.format(URLEncoder.encode(query, "UTF-8"))
+    fun searchUrl(query: String, template: String = DEFAULT_SEARCH_TEMPLATE): String =
+        template.format(URLEncoder.encode(query, "UTF-8"))
 
     /**
      * 智能 URL 处理：自动补全协议，不像网址就当搜索词。
@@ -68,17 +68,17 @@ object UrlHelper {
      * 本地/内网地址和带端口的地址（`localhost:3000`、`192.168.1.5:8080`）。
      * 它们没有点或者有端口，按原来的规则会被当成搜索词 —— 对开发机来说很难用。
      */
-    fun smartUrl(input: String): String = when {
+    fun smartUrl(input: String, searchTemplate: String = DEFAULT_SEARCH_TEMPLATE): String = when {
         input.startsWith("http://", true) || input.startsWith("https://", true) -> input
         input.startsWith(ASSET_PREFIX, true) -> input
         input.startsWith("about:", true) -> input
         // 除 android_asset 外的 file: 一律拒掉，当作搜索词处理。
         // 不这么做的话 "file:///data/data/com.x/y.xml" 会走到下面「含点即网址」那条，
         // 变成 https://file:///... —— 虽然也读不到本地文件，但会给出一个莫名其妙的网址。
-        input.startsWith("file:", true) -> searchUrl(input)
+        input.startsWith("file:", true) -> searchUrl(input, searchTemplate)
         LOCAL_HOST.matches(input) -> "http://$input"
         HOST_WITH_PORT.matches(input) -> "http://$input"
         input.contains(".") && !input.contains(" ") -> "https://$input"
-        else -> searchUrl(input)
+        else -> searchUrl(input, searchTemplate)
     }
 }

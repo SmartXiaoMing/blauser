@@ -3,6 +3,7 @@ package com.blauser.browser
 import android.view.View
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
+import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.Spinner
 import android.widget.Toast
@@ -86,6 +87,17 @@ object SettingsDialogs {
         // --- 语言 ---
         etLanguage.setText(SettingsManager.getLanguage(activity))
 
+        // --- 搜索引擎 ---
+        val spSearch = view.findViewById<Spinner>(R.id.spSearch)
+        spSearch.adapter = spinnerAdapter(
+            activity, SettingsManager.SEARCH_ENGINES.map { activity.getString(it.labelRes) }
+        )
+        val curEngine = SettingsManager.getSearchEngine(activity)
+        spSearch.setSelection(
+            SettingsManager.SEARCH_ENGINES
+                .indexOfFirst { it.key == curEngine }.coerceAtLeast(0)
+        )
+
         AlertDialog.Builder(activity)
             .setTitle(R.string.settings_title)
             .setView(view)
@@ -104,6 +116,10 @@ object SettingsDialogs {
                     SettingsManager.ORIENTATION_OPTIONS[spOrientation.selectedItemPosition].value
                 )
                 SettingsManager.setLanguage(activity, etLanguage.text.toString().trim())
+                SettingsManager.setSearchEngine(
+                    activity,
+                    SettingsManager.SEARCH_ENGINES[spSearch.selectedItemPosition].key
+                )
                 onApplied()
             }
             .setNegativeButton(R.string.action_cancel, null)
@@ -176,6 +192,10 @@ object SettingsDialogs {
 
         etLang.setText(current.language.orEmpty())
 
+        // --- 缩放（按网站，没有「跟随全局」这一档）---
+        val cbZoom = view.findViewById<CheckBox>(R.id.cbSiteZoom)
+        cbZoom.isChecked = current.zoomEnabled == true
+
         // 一键预设：直接改下面两个下拉的选中项，用户还能再微调
         view.findViewById<View>(R.id.btnPresetDesktop).setOnClickListener {
             spWidth.setSelection(
@@ -210,7 +230,8 @@ object SettingsDialogs {
                         pageWidth = w,
                         pageHeight = h,
                         uaKey = uaKeys[spUa.selectedItemPosition],
-                        language = etLang.text.toString().trim().ifBlank { null }
+                        language = etLang.text.toString().trim().ifBlank { null },
+                        zoomEnabled = if (cbZoom.isChecked) true else null
                     )
                 )
                 onApplied()

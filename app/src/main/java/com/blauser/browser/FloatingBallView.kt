@@ -123,6 +123,8 @@ class FloatingBallView(
         MenuRow(MenuAction.REFRESH, R.drawable.ic_refresh, R.string.menu_refresh),
         MenuRow(
             MenuAction.TOGGLE_ZOOM, R.drawable.ic_zoom, R.string.menu_zoom_off,
+            // 缩放是按网站设置的，空白标签没有域名可设
+            enabledWhen = { needsPage(it) },
             // 图标不变，靠文字带出当前状态 —— 开关只写名字看不出开还是关
             dynamic = { sp ->
                 R.drawable.ic_zoom to

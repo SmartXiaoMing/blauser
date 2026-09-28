@@ -21,6 +21,7 @@ object SiteSettingsManager {
     private const val KEY_HEIGHT = "height"
     private const val KEY_UA = "ua"
     private const val KEY_LANG = "lang"
+    private const val KEY_ZOOM = "zoom"
 
     /** 某个站点的覆盖项；INHERIT / null 表示跟随全局 */
     data class Overrides(
@@ -29,7 +30,15 @@ object SiteSettingsManager {
         /** 只在站点自己覆盖了宽度时才有意义；0 表示不限制高度 */
         val pageHeight: Int = 0,
         val uaKey: String? = null,
-        val language: String? = null
+        val language: String? = null,
+        /**
+         * 是否允许手势缩放（双指捏合 / 双击）。
+         *
+         * **刻意是按网站的，没有「全局默认」**：同一个 App 里，「看文档要能放大」
+         * 和「刷信息流怕误触」会同时存在，全局一个开关满足不了。
+         * null 表示这个网站没设过 —— 等同于不允许。
+         */
+        val zoomEnabled: Boolean? = null
     )
 
     /** 全局设置叠加站点覆盖之后，最终生效的值 */
@@ -39,7 +48,9 @@ object SiteSettingsManager {
         /** 虚拟屏幕高度（CSS px）。0 表示不限高，网页铺满屏宽、纵向滚动 */
         val pageHeight: Int,
         val userAgent: String,
-        val language: String?
+        val language: String?,
+        /** 这个网站是否允许手势缩放。没设过就是 false */
+        val zoomEnabled: Boolean
     )
 
     fun hostOf(url: String?): String? =
@@ -55,7 +66,9 @@ object SiteSettingsManager {
             pageWidth = p.getInt("$host#$KEY_WIDTH", INHERIT),
             pageHeight = p.getInt("$host#$KEY_HEIGHT", 0),
             uaKey = p.getString("$host#$KEY_UA", null),
-            language = p.getString("$host#$KEY_LANG", null)
+            language = p.getString("$host#$KEY_LANG", null),
+            // 存 true 才写 key，所以「有这个 key」就等价于允许
+            zoomEnabled = if (p.getBoolean("$host#$KEY_ZOOM", false)) true else null
         )
     }
 
@@ -77,7 +90,15 @@ object SiteSettingsManager {
 
             if (o.language.isNullOrEmpty()) remove("$host#$KEY_LANG")
             else putString("$host#$KEY_LANG", o.language)
+
+            if (o.zoomEnabled == true) putBoolean("$host#$KEY_ZOOM", true)
+            else remove("$host#$KEY_ZOOM")
         }.apply()
+    }
+
+    /** 只改缩放开关，其余覆盖项原样保留。悬浮球菜单里的开关走这条路 */
+    fun setZoomEnabled(context: Context, host: String, enabled: Boolean) {
+        save(context, host, get(context, host).copy(zoomEnabled = if (enabled) true else null))
     }
 
     fun clear(context: Context, host: String) {
@@ -87,6 +108,7 @@ object SiteSettingsManager {
             remove("$host#$KEY_HEIGHT")
             remove("$host#$KEY_UA")
             remove("$host#$KEY_LANG")
+            remove("$host#$KEY_ZOOM")
         }.apply()
     }
 
@@ -111,7 +133,8 @@ object SiteSettingsManager {
                 SettingsManager.resolveUserAgent(context)
             },
             language = o.language?.takeIf { it.isNotBlank() }
-                ?: SettingsManager.getLanguage(context).takeIf { it.isNotBlank() }
+                ?: SettingsManager.getLanguage(context).takeIf { it.isNotBlank() },
+            zoomEnabled = o.zoomEnabled == true
         )
     }
 

@@ -175,6 +175,19 @@
             style="@style/SettingsHint"
             android:text="@string/site_language_hint" />
 
+        <!-- ===== 缩放（按网站，没有「跟随全局」）===== -->
+        <CheckBox
+            android:id="@+id/cbSiteZoom"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:text="@string/site_zoom"
+            android:textSize="14sp" />
+
+        <TextView
+            style="@style/SettingsHint"
+            android:text="@string/site_zoom_hint" />
+
         <TextView
             style="@style/SettingsHint"
             android:layout_marginTop="14dp"

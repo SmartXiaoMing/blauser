@@ -214,8 +214,10 @@ class MainActivity : AppCompatActivity(),
 
         if (savedWebState != null && savedUrl.isNotBlank()) {
             val wv = ensureWebView()
-            // UA 和方向必须在发起请求之前设好，restoreState 会立刻重新请求当前页
-            applyRequestSettings(savedUrl, wv)
+            // UA / 方向 / 缩放必须在发起请求之前设好，restoreState 会立刻重新请求当前页
+            val resolved = resolveFor(savedUrl)
+            applyRequestSettings(resolved, wv)
+            applyWebViewSize(resolved)
             currentUrl = savedUrl
             // 返回 null 表示 bundle 里没有可用历史，那就退回普通加载
             if (wv.restoreState(savedWebState) == null) wv.loadUrl(savedUrl)
@@ -363,11 +365,19 @@ class MainActivity : AppCompatActivity(),
     private fun resolveFor(url: String): SiteSettingsManager.Resolved =
         SiteSettingsManager.resolve(this, SiteSettingsManager.hostOf(url))
 
-    /** UA 与屏幕方向必须在发起请求**之前**设好 —— 请求已经发出去再改就晚了 */
-    private fun applyRequestSettings(url: String, wv: WebView) {
-        val resolved = resolveFor(url)
-        wv.settings.userAgentString = resolved.userAgent
+    /**
+     * 应用「按网站解析出来、且必须在请求发出前生效」的设置。
+     *
+     * UA 决定服务器返回什么内容，晚一步就来不及；方向和缩放虽然不参与请求，
+     * 但也都是跟着网站走的，放在同一个时机应用才不会漏。
+     */
+    private fun applyRequestSettings(resolved: SiteSettingsManager.Resolved, wv: WebView) {
+        // 只在真的变了时才写，避免每次导航都往 native 层写一次
+        if (wv.settings.userAgentString != resolved.userAgent) {
+            wv.settings.userAgentString = resolved.userAgent
+        }
         applyOrientation(resolved.orientation)
+        WebViewFactory.applyZoomSetting(wv, resolved.zoomEnabled)
     }
 
     /** 加载网址 */
@@ -375,8 +385,7 @@ class MainActivity : AppCompatActivity(),
         val wv = ensureWebView()
         val resolved = resolveFor(url)
 
-        wv.settings.userAgentString = resolved.userAgent
-        applyOrientation(resolved.orientation)
+        applyRequestSettings(resolved, wv)
         // 必须在 loadUrl 之前把尺寸定下来：注入脚本要按它反算缩放比
         applyWebViewSize(resolved)
 
@@ -470,7 +479,7 @@ class MainActivity : AppCompatActivity(),
 
     override fun pageScaleFor(url: String): Float? = computeRenderBox(resolveFor(url))?.scale
 
-    override fun userScalableFor(url: String): Boolean = SettingsManager.isZoomEnabled(this)
+    override fun userScalableFor(url: String): Boolean = resolveFor(url).zoomEnabled
 
     private fun persistState() {
         TabRegistry.saveState(this, tabKey, currentUrl, currentTitle, isIncognito)
@@ -488,12 +497,7 @@ class MainActivity : AppCompatActivity(),
     override fun onBeforeNavigate(url: String) {
         if (!UrlHelper.isWebUrl(url)) return
         val wv = webView ?: return
-        val resolved = resolveFor(url)
-        // 只在真的变了时才写，避免每次导航都往 native 层写一次
-        if (wv.settings.userAgentString != resolved.userAgent) {
-            wv.settings.userAgentString = resolved.userAgent
-        }
-        applyOrientation(resolved.orientation)
+        applyRequestSettings(resolveFor(url), wv)
     }
 
     override fun onPageStarted(url: String) {
@@ -919,19 +923,26 @@ class MainActivity : AppCompatActivity(),
      * `user-scalable` 是页面级声明，得重新注入一次才能同步（不影响页面内容）。
      */
     private fun toggleZoom() {
-        val enabled = !SettingsManager.isZoomEnabled(this)
-        SettingsManager.setZoomEnabled(this, enabled)
-        webView?.let {
-            WebViewFactory.applyZoomSetting(it, enabled)
-            PageScaler.inject(
-                it,
-                pageWidthFor(currentUrl),
-                languageFor(currentUrl),
-                pageHeightFor(currentUrl),
-                pageScaleFor(currentUrl),
-                enabled
-            )
+        val host = SiteSettingsManager.hostOf(currentUrl)
+        val wv = webView
+        if (host == null || wv == null) {
+            toast(getString(R.string.toast_site_settings_no_host))
+            return
         }
+
+        // 缩放是按网站的：这里改的只是当前这个域名，别的站不受影响
+        val enabled = !resolveFor(currentUrl).zoomEnabled
+        SiteSettingsManager.setZoomEnabled(this, host, enabled)
+        WebViewFactory.applyZoomSetting(wv, enabled)
+        // 已注入的 viewport 里那句 user-scalable 是页面级声明，得重新注入一次才同步
+        PageScaler.inject(
+            wv,
+            pageWidthFor(currentUrl),
+            languageFor(currentUrl),
+            pageHeightFor(currentUrl),
+            pageScaleFor(currentUrl),
+            enabled
+        )
         toast(getString(if (enabled) R.string.toast_zoom_enabled else R.string.toast_zoom_disabled))
     }
 
@@ -979,7 +990,7 @@ class MainActivity : AppCompatActivity(),
     override fun isCurrentBookmarked(): Boolean =
         currentUrl.isNotBlank() && BookmarkManager.contains(this, currentUrl)
 
-    override fun isZoomEnabled(): Boolean = SettingsManager.isZoomEnabled(this)
+    override fun isZoomEnabled(): Boolean = resolveFor(currentUrl).zoomEnabled
 
     // ==================== 新标签页 ====================
 
@@ -1016,7 +1027,7 @@ class MainActivity : AppCompatActivity(),
         if (input.isEmpty()) return
         binding.newTabPage.etNewTabUrl.setText("")
         hideKeyboard(binding.newTabPage.etNewTabUrl)
-        openUrlReusingTab(UrlHelper.smartUrl(input))
+        openUrlReusingTab(UrlHelper.smartUrl(input, SettingsManager.searchTemplate(this)))
     }
 
     private fun populateNewTabPage() {

@@ -54,8 +54,10 @@
 
     <string name="menu_zoom_off">Allow zoom · Off</string>
     <string name="menu_zoom_on">Allow zoom · On</string>
-    <string name="toast_zoom_enabled">Zooming enabled: pinch or double-tap to zoom</string>
-    <string name="toast_zoom_disabled">Zooming disabled</string>
+    <string name="toast_zoom_enabled">Zooming enabled for this site: pinch or double-tap to zoom</string>
+    <string name="toast_zoom_disabled">Zooming disabled for this site</string>
+    <string name="site_zoom">Allow zoom</string>
+    <string name="site_zoom_hint">Per-site: applies to this domain only. When on, pinch or double-tap zooms the page.</string>
 
     <!-- ==================== History ==================== -->
     <string name="history_title">History</string>
@@ -114,6 +116,9 @@
     <string name="width_1366">1366 × 768 · Laptop</string>
     <string name="width_1024">1024 × 768 · Small PC</string>
     <string name="width_800">800 × 600 · Legacy monitor</string>
+    <string name="settings_search">Search engine</string>
+    <string name="settings_search_hint">Which engine to search with when the address bar input isn\'t a URL. Baidu by default.</string>
+
     <string name="width_custom">Custom…</string>
 
     <string name="custom_width">W</string>

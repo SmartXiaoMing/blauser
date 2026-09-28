@@ -103,6 +103,29 @@ class SettingsManagerTest {
         assertTrue(SettingsManager.WIDTH_OPTIONS.none { it.value == SettingsManager.WIDTH_CUSTOM })
     }
 
+    // ==================== 搜索引擎 ====================
+
+    @Test
+    fun `搜索引擎模板恰好一个占位符`() {
+        SettingsManager.SEARCH_ENGINES.forEach { engine ->
+            val placeholders = engine.template.split("%s").size - 1
+            assertEquals("${engine.key} 的模板", 1, placeholders)
+        }
+    }
+
+    @Test
+    fun `默认搜索引擎是百度`() {
+        // getSearchEngine 的兜底值取的是列表第一项，两者必须一致，
+        // 否则用户没选过时下拉会显示 Google 而实际用百度
+        assertEquals(SettingsManager.SEARCH_BAIDU, SettingsManager.SEARCH_ENGINES.first().key)
+    }
+
+    @Test
+    fun `搜索引擎 key 不重复`() {
+        val keys = SettingsManager.SEARCH_ENGINES.map { it.key }
+        assertEquals(keys.size, keys.distinct().size)
+    }
+
     @Test
     fun `方向选项的值不重复`() {
         val values = SettingsManager.ORIENTATION_OPTIONS.map { it.value }
