@@ -11,10 +11,12 @@ import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
+import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.PopupWindow
+import android.widget.ScrollView
 import android.widget.TextView
 import androidx.annotation.StringRes
 import androidx.appcompat.app.AppCompatActivity
@@ -371,19 +373,9 @@ class FloatingBallView(
 
         // 这里传 null 作为 parent 是正确的：PopupWindow 的内容本来就没有父容器，
         // 传它进去反而会立刻被加进视图树。菜单尺寸随后由 measure() 自己量。
+        // 先把内容拼好，再决定弹窗多大 —— 尺寸要靠量出来才知道
         val content = LayoutInflater.from(host)
             .inflate(R.layout.view_floating_menu, null, false) as LinearLayout
-        val popup = PopupWindow(
-            content,
-            FrameLayout.LayoutParams.WRAP_CONTENT,
-            FrameLayout.LayoutParams.WRAP_CONTENT,
-            true
-        ).apply {
-            // 没有背景的话点击外部不会自动关闭
-            setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-            isOutsideTouchable = true
-            elevation = dp(8f).toFloat()
-        }
 
         // 顶部显示当前网址：固定宽度 + 中间省略，开头和结尾都看得到
         val url = stateProvider.currentUrl()?.takeIf { it.isNotBlank() }
@@ -423,7 +415,7 @@ class FloatingBallView(
             content.addView(item)
         }
 
-        // 先量一次拿到菜单尺寸，才能决定往上弹还是往下弹、以及水平方向怎么收进屏内
+        // 先量一次拿到菜单的自然尺寸，才能决定往上弹还是往下弹、以及横向怎么收进屏内
         content.measure(
             View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
             View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
@@ -436,15 +428,39 @@ class FloatingBallView(
         parent.getLocationOnScreen(loc)
         val ballScreenX = loc[0] + x
         val ballScreenY = loc[1] + y
+        val screenTop = loc[1] + dp(4f)
+        val screenBottom = loc[1] + parent.height
+        val gap = dp(GAP_DP)
+
+        // 关键约束只有一个：**整块菜单要落在窗口内**。装在装不下时交给 ScrollView 滚。
+        //
+        // 之前没有滚动、也没有底部钳制，只保证顶部不越界 —— 横屏时窗口只有三百多 dp
+        // 而菜单近六百 dp，最下面那几项（本站设置 / 全局设置 / 审查元素）被切在屏幕外，
+        // 永远点不到。
+        val popupH = minOf(mh, screenBottom - screenTop)
+
+        val scroll = ScrollView(host).apply {
+            addView(
+                content,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+            overScrollMode = View.OVER_SCROLL_NEVER
+        }
+        val popup = PopupWindow(scroll, mw, popupH, true).apply {
+            // 没有背景的话点击外部不会自动关闭
+            setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+            isOutsideTouchable = true
+            elevation = dp(8f).toFloat()
+        }
 
         var px = ballScreenX.toInt()
-        var py = (ballScreenY + height + dp(GAP_DP)).toInt()
-        // 下方放不下就翻到球的上方
-        if (py + mh > loc[1] + parent.height) {
-            py = (ballScreenY - mh - dp(GAP_DP)).toInt()
-        }
-        // 顶部也别越界
-        py = py.coerceAtLeast(loc[1] + dp(4f))
+        // 优先往下弹；下方放不下就翻到球上方；两边都不够就贴顶 ——
+        // 这个是 coerceIn 而不是 coerceAtLeast，底部同样被钳住
+        var py = (ballScreenY + height + gap).toInt()
+        if (py + popupH > screenBottom) py = (ballScreenY - popupH - gap).toInt()
+        val maxPy = (screenBottom - popupH).coerceAtLeast(screenTop)
+        py = py.coerceIn(screenTop, maxPy)
         // 菜单比窗口还宽时（分屏、极窄窗口）coerceIn 的区间会反过来直接抛异常，
         // 这里退化成「贴着左边显示」，宁可超出也比崩掉强
         val maxPx = loc[0] + parent.width - mw - dp(8f)
