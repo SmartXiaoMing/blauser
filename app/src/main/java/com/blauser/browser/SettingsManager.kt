@@ -14,6 +14,9 @@ object SettingsManager {
     private const val PREF = "browser_settings"
 
     private const val KEY_PAGE_WIDTH = "page_width"
+
+    /** 虚拟屏幕高度。0 表示不限（只按宽度缩放，纵向滚动） */
+    private const val KEY_PAGE_HEIGHT = "page_height"
     private const val KEY_UA_KEY = "ua_key"
     private const val KEY_UA_CUSTOM = "ua_custom"
     private const val KEY_ORIENTATION = "orientation"
@@ -80,15 +83,33 @@ object SettingsManager {
         UaPreset(UA_CUSTOM, R.string.ua_custom, "")
     )
 
-    /** 页面宽度候选 */
+    /**
+     * 页面分辨率候选。
+     *
+     * 这些档位**只定宽度**：网页按该宽度排版，再整体缩放贴合手机屏宽，纵向照常滚动。
+     * 档位标签里的高度（如 1280 × 720）只是这个宽度「相当于什么屏幕」的说明，
+     * 不参与渲染 —— 否则手机屏又高又窄，保 16:9 就得上下留一大块白，日常浏览很难受。
+     *
+     * 想按真实比例模拟一块屏幕（等比缩放 + 四周留白）用「自定义」，那边可以填宽和高。
+     */
     val WIDTH_OPTIONS = listOf(
         IntOption(WIDTH_AUTO, R.string.width_auto),
         IntOption(WIDTH_FOLLOW_DEVICE, R.string.width_follow_device),
         IntOption(1280, R.string.width_1280),
+        IntOption(1366, R.string.width_1366),
         IntOption(1024, R.string.width_1024),
-        IntOption(800, R.string.width_800),
-        IntOption(768, R.string.width_768)
+        IntOption(800, R.string.width_800)
     )
+
+    /** 仅用于下拉框：用户选了「自定义…」，此时读输入框里的宽高 */
+    const val WIDTH_CUSTOM = -2
+
+    /** 自定义分辨率的兜底值 */
+    const val DEFAULT_CUSTOM_WIDTH = 1280
+    const val DEFAULT_CUSTOM_HEIGHT = 720
+
+    private const val MIN_SIZE = 120
+    private const val MAX_SIZE = 10000
 
     /** 没匹配到预设时统一回落到安卓默认 UA */
     private val fallbackUa: String get() = UA_PRESETS.first { it.key == UA_ANDROID }.value
@@ -100,8 +121,31 @@ object SettingsManager {
     fun getPageWidth(c: Context): Int =
         prefs(c).getInt(KEY_PAGE_WIDTH, DEFAULT_PAGE_WIDTH)
 
-    fun setPageWidth(c: Context, w: Int) =
-        prefs(c).edit().putInt(KEY_PAGE_WIDTH, w).apply()
+    /**
+     * 虚拟屏幕高度（CSS px）。0 表示不限高 —— 网页铺满屏宽、纵向滚动。
+     * 只有「自定义」分辨率会填它，填了就按 W:H 等比缩放并四周留白。
+     */
+    fun getPageHeight(c: Context): Int =
+        prefs(c).getInt(KEY_PAGE_HEIGHT, 0)
+
+    fun setResolution(c: Context, width: Int, height: Int) =
+        prefs(c).edit()
+            .putInt(KEY_PAGE_WIDTH, width)
+            .putInt(KEY_PAGE_HEIGHT, height.coerceIn(0, MAX_SIZE))
+            .apply()
+
+    fun setPageWidth(c: Context, w: Int) = setResolution(c, w, 0)
+
+    /** 自定义分辨率回显：当前值不是预设档时就当作自定义 */
+    fun customWidthForEditing(c: Context): Int =
+        getPageWidth(c).takeIf { it > 0 } ?: DEFAULT_CUSTOM_WIDTH
+
+    fun customHeightForEditing(c: Context): Int =
+        getPageHeight(c).takeIf { it > 0 } ?: DEFAULT_CUSTOM_HEIGHT
+
+    /** 把用户填的尺寸夹到合理范围，防止填 0 或天文数字把页面搞崩 */
+    fun sanitizeSize(value: Int, fallback: Int): Int =
+        value.takeIf { it in MIN_SIZE..MAX_SIZE } ?: fallback
 
     // ===== UserAgent =====
 

@@ -18,6 +18,7 @@ object SiteSettingsManager {
     private const val PREF = "site_settings"
     private const val KEY_ORIENTATION = "orientation"
     private const val KEY_WIDTH = "width"
+    private const val KEY_HEIGHT = "height"
     private const val KEY_UA = "ua"
     private const val KEY_LANG = "lang"
 
@@ -25,6 +26,8 @@ object SiteSettingsManager {
     data class Overrides(
         val orientation: Int = INHERIT,
         val pageWidth: Int = INHERIT,
+        /** 只在站点自己覆盖了宽度时才有意义；0 表示不限制高度 */
+        val pageHeight: Int = 0,
         val uaKey: String? = null,
         val language: String? = null
     )
@@ -33,6 +36,8 @@ object SiteSettingsManager {
     data class Resolved(
         val orientation: Int,
         val pageWidth: Int,
+        /** 虚拟屏幕高度（CSS px）。0 表示不限高，网页铺满屏宽、纵向滚动 */
+        val pageHeight: Int,
         val userAgent: String,
         val language: String?
     )
@@ -48,6 +53,7 @@ object SiteSettingsManager {
         return Overrides(
             orientation = p.getInt("$host#$KEY_ORIENTATION", INHERIT),
             pageWidth = p.getInt("$host#$KEY_WIDTH", INHERIT),
+            pageHeight = p.getInt("$host#$KEY_HEIGHT", 0),
             uaKey = p.getString("$host#$KEY_UA", null),
             language = p.getString("$host#$KEY_LANG", null)
         )
@@ -58,8 +64,13 @@ object SiteSettingsManager {
             if (o.orientation == INHERIT) remove("$host#$KEY_ORIENTATION")
             else putInt("$host#$KEY_ORIENTATION", o.orientation)
 
-            if (o.pageWidth == INHERIT) remove("$host#$KEY_WIDTH")
-            else putInt("$host#$KEY_WIDTH", o.pageWidth)
+            if (o.pageWidth == INHERIT) {
+                remove("$host#$KEY_WIDTH")
+                remove("$host#$KEY_HEIGHT")
+            } else {
+                putInt("$host#$KEY_WIDTH", o.pageWidth)
+                putInt("$host#$KEY_HEIGHT", o.pageHeight.coerceAtLeast(0))
+            }
 
             if (o.uaKey == null) remove("$host#$KEY_UA")
             else putString("$host#$KEY_UA", o.uaKey)
@@ -73,6 +84,7 @@ object SiteSettingsManager {
         prefs(context).edit().apply {
             remove("$host#$KEY_ORIENTATION")
             remove("$host#$KEY_WIDTH")
+            remove("$host#$KEY_HEIGHT")
             remove("$host#$KEY_UA")
             remove("$host#$KEY_LANG")
         }.apply()
@@ -86,6 +98,10 @@ object SiteSettingsManager {
             else SettingsManager.getOrientation(context),
             pageWidth = if (o.pageWidth != INHERIT) o.pageWidth
             else SettingsManager.getPageWidth(context),
+            // 宽高是一件事：站点覆盖了宽度就整套用自己的高度，
+            // 没覆盖就整套跟全局，避免出现「宽度是站点的、高度是全局的」这种拼接
+            pageHeight = if (o.pageWidth != INHERIT) o.pageHeight.coerceAtLeast(0)
+            else SettingsManager.getPageHeight(context),
             // 站点覆盖选了「自定义…」时，取全局那份自定义 UA —— 本站设置面板里
             // 没有填 UA 的输入框，不这么接的话 uaValueOf(UA_CUSTOM) 会因为没有 custom
             // 而回落到安卓默认 UA，用户以为覆盖生效了，其实拿到的是另一串

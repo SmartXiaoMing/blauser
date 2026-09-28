@@ -15,8 +15,15 @@ import android.webkit.WebView
  */
 object PageScaler {
 
-    fun inject(view: WebView, pageWidth: Int, language: String? = null) {
-        scriptFor(pageWidth, language)?.let { view.evaluateJavascript(it, null) }
+    fun inject(
+        view: WebView,
+        pageWidth: Int,
+        language: String? = null,
+        pageHeight: Int = 0,
+        scale: Float? = null
+    ) {
+        scriptFor(pageWidth, language, pageHeight, scale)
+            ?.let { view.evaluateJavascript(it, null) }
     }
 
     /**
@@ -24,15 +31,69 @@ object PageScaler {
      *
      * 和 [inject] 分开是为了可测：脚本生成是纯字符串拼接，
      * 不该为了测它去构造一个真 WebView。
+     *
+     * @param pageHeight 虚拟屏幕高度，0 表示不限高（只按宽度缩放）
+     * @param scale 虚拟屏幕模式下由视图尺寸反算出的缩放比；null 表示按屏宽自动算
      */
-    internal fun scriptFor(pageWidth: Int, language: String?): String? {
+    internal fun scriptFor(
+        pageWidth: Int,
+        language: String?,
+        pageHeight: Int = 0,
+        scale: Float? = null
+    ): String? {
         val lang = language?.takeIf { it.isNotBlank() }
+
+        // 虚拟屏幕模式：固定宽度 + 高度 + 明确的缩放比，三者缺一不可
+        if (pageHeight > 0 && scale != null && scale > 0f && pageWidth > 0) {
+            return virtualScreenScript(pageWidth, scale, lang)
+        }
+
         return when (pageWidth) {
             // 跟随手机屏：只在设了语言时才需要注入（伪装 navigator.language）
             SettingsManager.WIDTH_FOLLOW_DEVICE -> lang?.let { languageScript(it) }
             SettingsManager.WIDTH_AUTO -> autoScript(lang)
             else -> forceScript(pageWidth, lang)
         }
+    }
+
+    /**
+     * 虚拟屏幕模式：按 W:H 模拟一块屏幕，等比缩放、四周留白。
+     *
+     * 和 [forceScript] 的两点不同：
+     *  - 宽度就是 W，**不再按文档实际宽度扩张**（`Math.max(docW, W)`）。
+     *    这个模式的意义就是「屏幕就这么宽」，页面比它宽就该横向滚动。
+     *  - `initial-scale` 用调用方算好的值（按视图实际尺寸反推），而不是 `realW / W` ——
+     *    因为留白时视图宽度不等于屏宽。
+     */
+    private fun virtualScreenScript(w: Int, scale: Float, lang: String?): String {
+        // 别让 Float.toString 在极小值上吐科学计数法，那会变成非法的 CSS 数值
+        val scaleLiteral = java.lang.String.format(java.util.Locale.ROOT, "%.6f", scale)
+        return """
+            (function() {
+                ${languagePrologue(lang)}
+                var W = $w;
+                if (!W || W <= 0) return;
+                try {
+                    Object.defineProperty(window.screen, 'width', {
+                        get: function() { return W; }, configurable: true
+                    });
+                    Object.defineProperty(window.screen, 'availWidth', {
+                        get: function() { return W; }, configurable: true
+                    });
+                } catch (e) {}
+
+                var meta = document.querySelector('meta[name="viewport"]');
+                if (!meta) {
+                    meta = document.createElement('meta');
+                    meta.name = 'viewport';
+                    (document.head || document.documentElement).appendChild(meta);
+                }
+                meta.setAttribute('content',
+                    'width=' + W +
+                    ', initial-scale=$scaleLiteral' +
+                    ', maximum-scale=5.0, minimum-scale=0.1, user-scalable=yes');
+            })();
+        """.trimIndent()
     }
 
     /** 伪装 navigator.language / languages，让页面按目标语言渲染 */

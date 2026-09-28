@@ -93,8 +93,8 @@
 
     <!-- ==================== 全局设置 ==================== -->
     <string name="settings_title">全局设置</string>
-    <string name="settings_width">页面宽度（分辨率）</string>
-    <string name="settings_width_hint">控制页面的虚拟宽度，并同步伪装 window.screen.width。\n\n· 自动：页面自己声明了 width=device-width 就不动它，其余按 1280 当 PC 页缩放。日常用这个。\n· 跟随手机：完全不干预。\n· 1280 等固定值：无条件按该宽度渲染，响应式网站会拿到 screen.width=1280 从而输出 PC 布局，再整体缩放贴合手机屏。</string>
+    <string name="settings_width">分辨率</string>
+    <string name="settings_width_hint">控制页面的虚拟宽度，并同步伪装 window.screen.width。\n\n· 自动：页面自己声明了 width=device-width 就不动它，其余按 1280 当 PC 页缩放。日常用这个。\n· 跟随手机：完全不干预。\n· 固定档（如 1280 × 720）：无条件按该宽度渲染，响应式网站会拿到 screen.width=1280 从而输出 PC 布局，再整体缩放贴合手机屏。</string>
     <string name="settings_ua">UserAgent</string>
     <string name="settings_ua_custom_hint">选择「自定义…」后可在此填写 UA</string>
     <string name="settings_orientation">屏幕方向</string>
@@ -102,13 +102,22 @@
     <string name="settings_language_hint">如 zh-CN、en-US，留空则跟随系统</string>
     <string name="settings_global_hint">以上是所有网站的默认值。想只对某个网站生效，用悬浮球菜单里的「本站设置」。长按悬浮球可直达本页。</string>
 
-    <!-- 页面宽度档位 -->
+    <!--
+      分辨率档位。标签里的「宽 × 高」是这个宽度相当于什么屏幕的说明，
+      渲染时只用宽度（见 SettingsManager.WIDTH_OPTIONS 的注释）。
+    -->
     <string name="width_auto">自动（推荐）</string>
     <string name="width_follow_device">跟随手机</string>
-    <string name="width_1280">1280 · PC</string>
-    <string name="width_1024">1024 · 小屏 PC</string>
-    <string name="width_800">800 · 平板</string>
-    <string name="width_768">768 · 平板</string>
+    <string name="width_1280">1280 × 720 · PC 宽屏</string>
+    <string name="width_1366">1366 × 768 · 笔记本</string>
+    <string name="width_1024">1024 × 768 · 小屏 PC</string>
+    <string name="width_800">800 × 600 · 老式显示器</string>
+    <string name="width_custom">自定义…</string>
+
+    <!-- 自定义分辨率输入 -->
+    <string name="custom_width">宽</string>
+    <string name="custom_height">高</string>
+    <string name="custom_size_hint">填了高度就按这个比例模拟一块屏幕：等比缩放、四周留白。\n高度留空 = 不限高，只按宽度缩放，网页铺满屏宽。</string>
 
     <!-- 屏幕方向档位 -->
     <string name="orientation_system">跟随系统</string>

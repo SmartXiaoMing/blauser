@@ -67,6 +67,42 @@ class SettingsManagerTest {
         assertTrue(values.contains(SettingsManager.WIDTH_FOLLOW_DEVICE))
     }
 
+    // ==================== 自定义分辨率 ====================
+
+    @Test
+    fun `非法尺寸会被夹到合理范围`() {
+        // 正常值原样保留
+        assertEquals(1280, SettingsManager.sanitizeSize(1280, 1280))
+        assertEquals(5000, SettingsManager.sanitizeSize(5000, 1280))
+        // 太小 / 非正数 → 回落。0 或负数会让页面直接白屏
+        assertEquals(1280, SettingsManager.sanitizeSize(0, 1280))
+        assertEquals(1280, SettingsManager.sanitizeSize(-5, 1280))
+        // 大得离谱（比如把高度当宽度填了）也回落
+        assertEquals(1280, SettingsManager.sanitizeSize(999_999, 1280))
+    }
+
+    @Test
+    fun `高度允许为 0 表示不限高`() {
+        // 高度 0 是合法值（不限制高度），不能像宽度那样被当成非法值顶掉
+        assertEquals(0, SettingsManager.sanitizeSize(0, 0))
+        assertEquals(720, SettingsManager.sanitizeSize(720, 0))
+    }
+
+    @Test
+    fun `预设档位都带高度说明但只按宽度渲染`() {
+        // 标签里写了 W × H 只是说明性的；渲染只取宽度，
+        // 所以这里核对的是「宽度全都不同」，避免两档实际效果相同
+        val presetWidths = SettingsManager.WIDTH_OPTIONS
+            .filter { it.value > 0 }
+            .map { it.value }
+        assertEquals(presetWidths.size, presetWidths.distinct().size)
+    }
+
+    @Test
+    fun `自定义哨兵不和任何预设档撞车`() {
+        assertTrue(SettingsManager.WIDTH_OPTIONS.none { it.value == SettingsManager.WIDTH_CUSTOM })
+    }
+
     @Test
     fun `方向选项的值不重复`() {
         val values = SettingsManager.ORIENTATION_OPTIONS.map { it.value }

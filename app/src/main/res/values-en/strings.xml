@@ -95,8 +95,8 @@
 
     <!-- ==================== Global settings ==================== -->
     <string name="settings_title">Global settings</string>
-    <string name="settings_width">Page width (resolution)</string>
-    <string name="settings_width_hint">Controls the page\'s virtual width and spoofs window.screen.width to match.\n\n· Auto: if the page declares width=device-width, leave it alone; everything else is rendered at 1280 as a PC page and scaled. This is the everyday choice.\n· Follow phone: no intervention at all.\n· A fixed value such as 1280: always render at that width. Responsive sites then get screen.width=1280 and output a PC layout, which is scaled down to fit the phone screen.</string>
+    <string name="settings_width">Resolution</string>
+    <string name="settings_width_hint">Controls the page\'s virtual width and spoofs window.screen.width to match.\n\n· Auto: if the page declares width=device-width, leave it alone; everything else is rendered at 1280 as a PC page and scaled. This is the everyday choice.\n· Follow phone: no intervention at all.\n· A fixed preset (such as 1280 × 720): always render at that width. Responsive sites then get screen.width=1280 and output a PC layout, which is scaled down to fit the phone screen.</string>
     <string name="settings_ua">UserAgent</string>
     <string name="settings_ua_custom_hint">Pick \"Custom…\" to enter a UA here</string>
     <string name="settings_orientation">Screen orientation</string>
@@ -107,10 +107,15 @@
     <!-- Page width presets -->
     <string name="width_auto">Auto (recommended)</string>
     <string name="width_follow_device">Follow phone</string>
-    <string name="width_1280">1280 · PC</string>
-    <string name="width_1024">1024 · Small PC</string>
-    <string name="width_800">800 · Tablet</string>
-    <string name="width_768">768 · Tablet</string>
+    <string name="width_1280">1280 × 720 · Widescreen PC</string>
+    <string name="width_1366">1366 × 768 · Laptop</string>
+    <string name="width_1024">1024 × 768 · Small PC</string>
+    <string name="width_800">800 × 600 · Legacy monitor</string>
+    <string name="width_custom">Custom…</string>
+
+    <string name="custom_width">W</string>
+    <string name="custom_height">H</string>
+    <string name="custom_size_hint">With a height, the page is rendered as a screen of that aspect ratio — scaled to fit with blank margins.\nEmpty height = no limit; scale by width only, filling the screen.</string>
 
     <!-- Screen orientation presets -->
     <string name="orientation_system">Follow system</string>

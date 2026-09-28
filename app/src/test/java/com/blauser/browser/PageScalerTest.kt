@@ -71,6 +71,51 @@ class PageScalerTest {
         assertTrue(script.contains("__blauserRealW"))
     }
 
+    // ==================== 虚拟屏幕模式（自定义分辨率填了高）====================
+
+    @Test
+    fun `虚拟屏幕模式把宽度锁死为设定值`() {
+        val script = PageScaler.scriptFor(1280, null, pageHeight = 720, scale = 0.32f)!!
+        assertTrue(script.contains("var W = 1280"))
+        assertTrue(script.contains("initial-scale=0.320000"))
+        // 不该按文档实际宽度扩张 —— 那是 forceScript 的行为，虚拟屏模式的意义就是定宽
+        assertFalse(script.contains("scrollWidth"))
+    }
+
+    @Test
+    fun `虚拟屏幕模式缺高度或缺缩放比就退回普通模式`() {
+        // 有高度但没缩放比（视图还没量出来）
+        val a = PageScaler.scriptFor(1280, null, pageHeight = 720, scale = null)!!
+        assertTrue("应有文档宽度扩张逻辑", a.contains("scrollWidth"))
+
+        // 有缩放比但没高度（预设档就是这个组合）
+        val b = PageScaler.scriptFor(1280, null, pageHeight = 0, scale = 0.3f)!!
+        assertTrue("应有文档宽度扩张逻辑", b.contains("scrollWidth"))
+    }
+
+    @Test
+    fun `缩放比不会写成科学计数法`() {
+        // Float.toString 对极小值会吐 "1.2E-4"，那是非法的 CSS 数值
+        val script = PageScaler.scriptFor(1280, null, pageHeight = 720, scale = 0.000123456f)!!
+        assertFalse(script, script.contains("E-"))
+        assertFalse(script, script.contains("e-"))
+        assertTrue(script.contains("initial-scale=0.000123"))
+    }
+
+    @Test
+    fun `虚拟屏幕模式同样伪装 screen width`() {
+        val script = PageScaler.scriptFor(1280, null, pageHeight = 720, scale = 0.32f)!!
+        assertTrue(script.contains("screen"))
+        assertTrue(script.contains("availWidth"))
+    }
+
+    @Test
+    fun `虚拟屏幕模式下语言伪装也生效`() {
+        val script = PageScaler.scriptFor(1280, "ja-JP", pageHeight = 720, scale = 0.32f)!!
+        assertTrue(script.contains("ja-JP"))
+        assertTrue(script.contains("initial-scale=0.320000"))
+    }
+
     @Test
     fun `语言里的引号被转义不会破坏脚本`() {
         // 语言是用户手填的，直接拼进 JS 字符串会让脚本语法错误甚至注入

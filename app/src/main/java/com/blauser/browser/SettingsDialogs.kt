@@ -28,14 +28,33 @@ object SettingsDialogs {
         val spOrientation = view.findViewById<Spinner>(R.id.spOrientation)
         val etLanguage = view.findViewById<EditText>(R.id.etLanguage)
 
-        // --- 页面宽度 ---
-        spWidth.adapter = spinnerAdapter(activity, SettingsManager.WIDTH_OPTIONS.map {
-            activity.getString(it.labelRes)
-        })
+        // --- 分辨率 ---
+        val customRow = view.findViewById<View>(R.id.customSizeRow)
+        val etCustomWidth = view.findViewById<EditText>(R.id.etCustomWidth)
+        val etCustomHeight = view.findViewById<EditText>(R.id.etCustomHeight)
+        val tvCustomHint = view.findViewById<View>(R.id.tvCustomSizeHint)
+
+        // 下拉最后多一项「自定义…」，选中它才显示宽高输入框
+        val widthValues = widthValuesWithCustom()
+        spWidth.adapter = spinnerAdapter(activity, widthLabels(activity, withCustom = true))
         val curWidth = SettingsManager.getPageWidth(activity)
-        spWidth.setSelection(
-            SettingsManager.WIDTH_OPTIONS.indexOfFirst { it.value == curWidth }.coerceAtLeast(0)
+        // 填了高度就一定是自定义：这时候宽度即使刚好等于某个预设档，
+        // 行为也和那个预设不同（预设铺满屏宽，自定义要留白），不能选中它
+        val presetIndex = if (SettingsManager.getPageHeight(activity) > 0) -1
+        else SettingsManager.WIDTH_OPTIONS.indexOfFirst { it.value == curWidth }
+        spWidth.setSelection(if (presetIndex >= 0) presetIndex else widthValues.lastIndex)
+
+        etCustomWidth.setText(SettingsManager.customWidthForEditing(activity).toString())
+        etCustomHeight.setText(
+            SettingsManager.getPageHeight(activity).takeIf { it > 0 }?.toString().orEmpty()
         )
+        fun syncCustomVisibility() {
+            val show = spWidth.selectedItemPosition == widthValues.lastIndex
+            customRow.visibility = if (show) View.VISIBLE else View.GONE
+            tvCustomHint.visibility = customRow.visibility
+        }
+        syncCustomVisibility()
+        spWidth.onItemSelectedListener = SimpleItemSelected { syncCustomVisibility() }
 
         // --- UserAgent ---
         spUa.adapter = spinnerAdapter(activity, SettingsManager.UA_PRESETS.map {
@@ -71,9 +90,10 @@ object SettingsDialogs {
             .setTitle(R.string.settings_title)
             .setView(view)
             .setPositiveButton(R.string.action_save) { _, _ ->
-                SettingsManager.setPageWidth(
-                    activity, SettingsManager.WIDTH_OPTIONS[spWidth.selectedItemPosition].value
+                val (w, h) = readResolution(
+                    spWidth.selectedItemPosition, widthValues, etCustomWidth, etCustomHeight
                 )
+                SettingsManager.setResolution(activity, w, h)
                 SettingsManager.setUa(
                     activity,
                     SettingsManager.UA_PRESETS[spUa.selectedItemPosition].key,
@@ -119,15 +139,32 @@ object SettingsDialogs {
         )
         spOrientation.setSelection(orientValues.indexOf(current.orientation).coerceAtLeast(0))
 
-        val widthValues = listOf(SiteSettingsManager.INHERIT) +
-            SettingsManager.WIDTH_OPTIONS.map { it.value }
+        val customRow = view.findViewById<View>(R.id.customSizeRow)
+        val etCustomWidth = view.findViewById<EditText>(R.id.etCustomWidth)
+        val etCustomHeight = view.findViewById<EditText>(R.id.etCustomHeight)
+        val tvCustomHint = view.findViewById<View>(R.id.tvCustomSizeHint)
+
+        // 「跟随全局」+ 预设档 + 「自定义…」
+        val widthValues = widthValuesWithCustom(inheritFirst = true)
         spWidth.adapter = spinnerAdapter(
-            activity,
-            listOf(inherit) + SettingsManager.WIDTH_OPTIONS.map {
-                activity.getString(it.labelRes)
-            }
+            activity, widthLabels(activity, withCustom = true, inheritFirst = true)
         )
-        spWidth.setSelection(widthValues.indexOf(current.pageWidth).coerceAtLeast(0))
+        // 同全局设置：填了高度就是自定义，别因为宽度恰好命中预设档就选中那个预设
+        val widthIndex = if (current.pageHeight > 0) -1 else widthValues.indexOf(current.pageWidth)
+        spWidth.setSelection(if (widthIndex >= 0) widthIndex else widthValues.lastIndex)
+
+        etCustomWidth.setText(
+            current.pageWidth.takeIf { it > 0 }?.toString()
+                ?: SettingsManager.DEFAULT_CUSTOM_WIDTH.toString()
+        )
+        etCustomHeight.setText(current.pageHeight.takeIf { it > 0 }?.toString().orEmpty())
+        fun syncCustomVisibility() {
+            val show = spWidth.selectedItemPosition == widthValues.lastIndex
+            customRow.visibility = if (show) View.VISIBLE else View.GONE
+            tvCustomHint.visibility = customRow.visibility
+        }
+        syncCustomVisibility()
+        spWidth.onItemSelectedListener = SimpleItemSelected { syncCustomVisibility() }
 
         // uaKey 是 String?，null 表示跟随全局，所以这里不能直接用 Int 的 indexOf
         val uaKeys = listOf<String?>(null) + SettingsManager.UA_PRESETS.map { it.key }
@@ -163,11 +200,15 @@ object SettingsDialogs {
             .setTitle(activity.getString(R.string.site_settings_title, host))
             .setView(view)
             .setPositiveButton(R.string.action_save) { _, _ ->
+                val (w, h) = readResolution(
+                    spWidth.selectedItemPosition, widthValues, etCustomWidth, etCustomHeight
+                )
                 SiteSettingsManager.save(
                     activity, host,
                     SiteSettingsManager.Overrides(
                         orientation = orientValues[spOrientation.selectedItemPosition],
-                        pageWidth = widthValues[spWidth.selectedItemPosition],
+                        pageWidth = w,
+                        pageHeight = h,
                         uaKey = uaKeys[spUa.selectedItemPosition],
                         language = etLang.text.toString().trim().ifBlank { null }
                     )
@@ -205,6 +246,54 @@ object SettingsDialogs {
     }
 
     // ==================== 小工具 ====================
+
+    /** 分辨率下拉的取值序列：预设档 + 「跟随全局」（可选）+ 「自定义…」 */
+    private fun widthValuesWithCustom(inheritFirst: Boolean = false): List<Int> {
+        val presets = SettingsManager.WIDTH_OPTIONS.map { it.value }
+        val custom = listOf(SettingsManager.WIDTH_CUSTOM)
+        return if (inheritFirst) listOf(SiteSettingsManager.INHERIT) + presets + custom
+        else presets + custom
+    }
+
+    private fun widthLabels(
+        activity: AppCompatActivity,
+        withCustom: Boolean,
+        inheritFirst: Boolean = false
+    ): List<String> {
+        val labels = SettingsManager.WIDTH_OPTIONS.map { activity.getString(it.labelRes) }
+        return buildList {
+            if (inheritFirst) add(activity.getString(R.string.site_inherit))
+            addAll(labels)
+            if (withCustom) add(activity.getString(R.string.width_custom))
+        }
+    }
+
+    /**
+     * 把下拉选中位置解析成 (宽, 高)。高为 0 表示不限高（只按宽度缩放、纵向滚动）。
+     *
+     * 自定义那一档要读输入框；填写不合法（空、非数字、太离谱）时回落到默认值，
+     * 而不是把 0 或天文数字写进设置 —— 那会让页面直接白屏。
+     */
+    private fun readResolution(
+        pos: Int,
+        values: List<Int>,
+        etWidth: EditText,
+        etHeight: EditText
+    ): Pair<Int, Int> {
+        val value = values.getOrNull(pos) ?: SettingsManager.DEFAULT_PAGE_WIDTH
+        if (value != SettingsManager.WIDTH_CUSTOM) return value to 0
+
+        val w = SettingsManager.sanitizeSize(
+            etWidth.text.toString().trim().toIntOrNull() ?: 0,
+            SettingsManager.DEFAULT_CUSTOM_WIDTH
+        )
+        // 高度留空是合法的：表示不限制高度
+        val h = SettingsManager.sanitizeSize(
+            etHeight.text.toString().trim().toIntOrNull() ?: 0,
+            0
+        )
+        return w to h
+    }
 
     private fun spinnerAdapter(activity: AppCompatActivity, labels: List<String>) =
         ArrayAdapter(activity, android.R.layout.simple_spinner_item, labels).apply {

@@ -40,7 +40,14 @@ object WebViewFactory {
      */
     interface SettingsResolver {
         fun pageWidthFor(url: String): Int
+
+        /** 虚拟屏幕高度；0 表示不限高（只按宽度缩放） */
+        fun pageHeightFor(url: String): Int
+
         fun languageFor(url: String): String?
+
+        /** 虚拟屏幕模式下按视图尺寸反算的缩放比；null 表示按屏宽自动算 */
+        fun pageScaleFor(url: String): Float?
     }
 
     interface Callbacks {
@@ -207,6 +214,17 @@ object WebViewFactory {
 
         wv.webViewClient = object : WebViewClient() {
 
+            /** 缩放脚本的注入点有两处（开始 / 排版完成），参数也一样，抽出来免得漏改 */
+            private fun injectScaler(view: WebView, url: String) {
+                PageScaler.inject(
+                    view,
+                    resolver.pageWidthFor(url),
+                    resolver.languageFor(url),
+                    resolver.pageHeightFor(url),
+                    resolver.pageScaleFor(url)
+                )
+            }
+
             override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
                 // 兜底：有些导航不走 shouldOverrideUrlLoading（表单提交、服务端重定向、
                 // JS 跳转），等走到这里请求已经发出去了，但至少让页面内的后续请求
@@ -214,13 +232,13 @@ object WebViewFactory {
                 cb.onBeforeNavigate(url)
 
                 // 尽早注入，争取赶在页面 <head> 内脚本之前
-                PageScaler.inject(view, resolver.pageWidthFor(url), resolver.languageFor(url))
+                injectScaler(view, url)
                 cb.onPageStarted(url)
             }
 
             override fun onPageFinished(view: WebView, url: String) {
                 // 再注入一次：此时页面已排版，能拿到真实内容宽度做修正
-                PageScaler.inject(view, resolver.pageWidthFor(url), resolver.languageFor(url))
+                injectScaler(view, url)
                 cb.onPageFinished(url)
             }
 

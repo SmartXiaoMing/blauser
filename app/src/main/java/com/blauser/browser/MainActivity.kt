@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
 import android.view.inputmethod.EditorInfo
@@ -15,6 +16,7 @@ import android.webkit.PermissionRequest
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebView
+import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.TextView
@@ -28,6 +30,7 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.blauser.browser.databinding.ActivityMainBinding
+import kotlin.math.roundToInt
 
 /**
  * 一个 Activity 实例 = 一个标签页 = 一个 Android task。
@@ -254,7 +257,17 @@ class MainActivity : AppCompatActivity(),
      * 让出空间。有挖孔的机型还要开 shortEdges，否则窗口会被 letterbox。
      */
     private fun enterFullscreen() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+        // 让窗口铺满整块屏幕，**包括刘海那块**。
+        //
+        // API 30 起用 ALWAYS：SHORT_EDGES 只在「短边」生效（竖屏是上下、横屏是左右），
+        // 而横屏时刘海正好在左/右，某些机型上就覆盖不到，会让出一条白边。
+        // ALWAYS 不挑方向，两种朝向都铺满。
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            window.attributes = window.attributes.apply {
+                layoutInDisplayCutoutMode =
+                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+            }
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             window.attributes = window.attributes.apply {
                 layoutInDisplayCutoutMode =
                     WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
@@ -267,14 +280,17 @@ class MainActivity : AppCompatActivity(),
                 WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         }
         ViewCompat.setOnApplyWindowInsetsListener(binding.rootLayout) { v, insets ->
-            val bars = insets.getInsets(
-                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
-            )
-            // 顶部刻意留 0：状态栏已隐藏，内容要一直铺到屏幕顶端
+            // 内边距**只按系统栏**让位，不含刘海。
+            //
+            // 之前这里用的是 systemBars() or displayCutout()，等于把刘海也推进了内边距：
+            // 横屏时刘海在左/右，内容被往里推，让出来的那条就露出窗口底色（一片白）。
+            // 刘海那块应该让网页铺过去，所以只保留系统栏（底部手势条）的让位。
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            // 顶部也留 0：状态栏已隐藏，内容一直铺到屏幕顶端
             v.setPadding(bars.left, 0, bars.right, bars.bottom)
 
-            // 但悬浮球不能铺进去 —— 刘海那块物理上没有像素，球画在那里就等于消失。
-            // 只取 displayCutout 而不是 systemBars：状态栏是隐藏的，不该占球的活动范围。
+            // 但悬浮球不能铺进刘海 —— 那块物理上没有像素，球画在那里就等于消失。
+            // 只取 displayCutout，不含状态栏：状态栏本来就隐藏了，不该占球的活动范围。
             val cutoutTop = insets.getInsets(WindowInsetsCompat.Type.displayCutout()).top
             ballSafeTop = cutoutTop
             ball?.setSafeTop(cutoutTop)
@@ -336,6 +352,11 @@ class MainActivity : AppCompatActivity(),
         val wv = WebViewFactory.create(this, this, this, incognito = isIncognito)
         binding.webContainer.addView(wv)
         webView = wv
+        // 容器尺寸变化（旋转、分屏、键盘）时重算尺寸：
+        // 虚拟屏幕模式的留白比例依赖容器，不重算的话旋转后就不对了
+        binding.webContainer.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            applyWebViewSize()
+        }
         return wv
     }
 
@@ -356,12 +377,57 @@ class MainActivity : AppCompatActivity(),
 
         wv.settings.userAgentString = resolved.userAgent
         applyOrientation(resolved.orientation)
+        // 必须在 loadUrl 之前把尺寸定下来：注入脚本要按它反算缩放比
+        applyWebViewSize(resolved)
 
         currentUrl = url
         loadWithHeaders(wv, url, resolved.language)
 
         updateNewTabPage()
         persistState()
+    }
+
+    // ==================== 分辨率 / 虚拟屏幕 ====================
+
+    /** WebView 该占多大，以及虚拟屏幕模式下的缩放比 */
+    private data class RenderBox(val widthPx: Int, val heightPx: Int, val scale: Float?)
+
+    /**
+     * 按当前分辨率设置算出 WebView 的尺寸。
+     *
+     * 不限高（自动 / 跟随手机 / 预设档）→ 铺满容器，网页纵向滚动。
+     * 指定了高度（「自定义」填了高）→ 按 W:H 等比缩放，取宽高两个方向里较小的比例，
+     * 于是长边方向就会空出来，由 [applyWebViewSize] 居中 —— 这就是「留白」。
+     */
+    private fun computeRenderBox(resolved: SiteSettingsManager.Resolved): RenderBox? {
+        val cw = binding.webContainer.width
+        val ch = binding.webContainer.height
+        if (cw <= 0 || ch <= 0) return null
+
+        val vw = resolved.pageWidth
+        val vh = resolved.pageHeight
+        if (vh <= 0 || vw <= 0) return RenderBox(cw, ch, null)
+
+        // 每一 CSS px 占多少物理像素：宽放得下和长放得下，取小的那个才不会被裁
+        val pxPerCss = minOf(cw.toFloat() / vw, ch.toFloat() / vh)
+        return RenderBox(
+            widthPx = (vw * pxPerCss).roundToInt().coerceAtMost(cw),
+            heightPx = (vh * pxPerCss).roundToInt().coerceAtMost(ch),
+            // initial-scale 的单位是 CSS px → dp，所以还要除以屏幕密度
+            scale = pxPerCss / resources.displayMetrics.density
+        )
+    }
+
+    private fun applyWebViewSize(resolved: SiteSettingsManager.Resolved = resolveFor(currentUrl)) {
+        val wv = webView ?: return
+        val box = computeRenderBox(resolved) ?: return
+        val lp = wv.layoutParams as? FrameLayout.LayoutParams ?: return
+        if (lp.width == box.widthPx && lp.height == box.heightPx) return
+        lp.width = box.widthPx
+        lp.height = box.heightPx
+        // 不铺满时居中，四周留白；铺满时 gravity 无所谓
+        lp.gravity = if (box.scale == null) Gravity.TOP or Gravity.START else Gravity.CENTER
+        wv.layoutParams = lp
     }
 
     /**
@@ -398,7 +464,11 @@ class MainActivity : AppCompatActivity(),
 
     override fun pageWidthFor(url: String): Int = resolveFor(url).pageWidth
 
+    override fun pageHeightFor(url: String): Int = resolveFor(url).pageHeight
+
     override fun languageFor(url: String): String? = resolveFor(url).language
+
+    override fun pageScaleFor(url: String): Float? = computeRenderBox(resolveFor(url))?.scale
 
     private fun persistState() {
         TabRegistry.saveState(this, tabKey, currentUrl, currentTitle, isIncognito)
@@ -863,6 +933,8 @@ class MainActivity : AppCompatActivity(),
         val wv = webView
         if (wv != null) {
             wv.settings.userAgentString = resolved.userAgent
+            // 分辨率可能变了（虚拟屏幕的留白比例依赖它），先按新值排一次
+            applyWebViewSize(resolved)
             if (signatureOf(resolved) != before) {
                 SettingsDialogs.confirmReload(this, messageRes) { reloadCurrentPage() }
             }
