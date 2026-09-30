@@ -30,6 +30,7 @@ app/src/main/java/com/blauser/browser/
 ├── UrlHelper.kt             # 地址栏输入解析（纯函数，有单测）
 ├── SettingsManager.kt       # 全局设置持久化
 ├── SiteSettingsManager.kt   # 按域名覆盖全局设置
+├── SslExceptionStore.kt     # 已接受的无效证书（域名 + 指纹，可撤销）
 ├── SettingsDialogs.kt       # 全局设置 / 本站设置两个面板
 ├── PageActions.kt           # 收藏 / 历史 / 复制 / 分享 / 桌面快捷方式 / 审查元素
 ├── DownloadHandler.kt       # 下载（走系统 DownloadManager）
@@ -37,7 +38,7 @@ app/src/main/java/com/blauser/browser/
 ├── FloatingBallView.kt      # 半球悬浮球与下拉菜单（菜单项数据驱动）
 ├── BookmarkManager.kt       # 收藏夹存储（含旧数据迁移）
 ├── HistoryManager.kt        # 浏览历史（去重置顶 + 上限截断，有单测）
-└── UrlListDialog.kt         # 通用网址列表对话框（收藏夹 / 历史共用）
+└── UrlListDialog.kt         # 通用网址列表对话框（收藏夹 / 历史 / 证书例外共用）
 ```
 
 ## 常用命令

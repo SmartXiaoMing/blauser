@@ -86,7 +86,8 @@
     <!-- 错误码与原始描述，如 "错误码 -2 · net::ERR_INTERNET_DISCONNECTED" -->
     <string name="error_detail">错误码 %1$d</string>
     <string name="error_detail_with_desc">错误码 %1$d · %2$s</string>
-    <string name="error_ssl_detail">证书问题 · %1$d</string>
+    <!-- 证书问题的原因，不是原始错误码 —— 用户要知道自己正在接受什么 -->
+    <string name="error_ssl_detail">证书问题 · %1$s</string>
 
     <!-- WebView 错误码 → 人话 -->
     <string name="err_host_lookup">找不到这个网站。域名可能拼错了，或者当前网络无法解析它。</string>
@@ -103,6 +104,41 @@
     <string name="err_auth">服务器要求身份验证。</string>
     <string name="err_unsafe_resource">该资源被安全策略拦截。</string>
     <string name="err_unknown">发生了未知错误。</string>
+
+    <!-- 证书错误的 primaryError → 人话 -->
+    <string name="ssl_reason_expired">证书已过期</string>
+    <string name="ssl_reason_not_yet_valid">证书还没到生效时间（设备时间不对也会这样）</string>
+    <string name="ssl_reason_mismatch">证书上的域名和实际访问的域名不一致</string>
+    <string name="ssl_reason_untrusted">证书不是受信任的机构签发的（自签名证书属于这一种）</string>
+    <string name="ssl_reason_date_invalid">证书的有效期无法校验</string>
+    <string name="ssl_reason_invalid">证书本身不合法</string>
+    <string name="ssl_reason_unknown">原因不明</string>
+
+    <!--
+      证书例外：不接受 / 接受并永久记住。
+      正文分两套 —— 子资源出错时如果用主文档的措辞，页面上一个坏证书图片弹出来
+      会让人以为整个网站出了问题。
+    -->
+    <string name="ssl_dialog_message_site">「%1$s」的证书无法通过校验：%2$s。\n\n继续访问等于放弃这趟连接的中间人攻击防护，数据可能被第三方看到或篡改。\n\n确认后，这个域名的这张证书会被永久记住，不再询问。证书换了会重新问。</string>
+    <string name="ssl_dialog_message_resource">这个网页请求的资源（%1$s）证书无法通过校验：%2$s。\n\n继续访问等于放弃这趟连接的中间人攻击防护。\n\n确认后，这个域名的这张证书会被永久记住，不再询问。证书换了会重新问。</string>
+    <string name="ssl_action_proceed">继续访问（不安全）</string>
+    <string name="toast_ssl_remembered">已记住 %1$s 的这张证书，以后不再询问</string>
+    <string name="toast_ssl_proceeded_incognito">本次已放行（无痕标签不记录例外）</string>
+    <string name="toast_ssl_proceeded_unrecorded">本次已放行，但没能记下这张证书，下次还会问</string>
+
+    <!-- 证书例外的撤销入口 -->
+    <string name="site_ssl_exception">已接受无效证书 · 指纹 %1$s</string>
+    <string name="site_ssl_exception_hint">这个域名的这张证书会被直接放行，不再询问。证书换了会重新问。</string>
+    <string name="settings_ssl_exceptions">证书例外</string>
+    <string name="settings_ssl_exceptions_none">没有接受过无效证书</string>
+    <string name="settings_ssl_exceptions_count">已接受 %1$d 个域名 · 点开管理</string>
+    <string name="settings_ssl_exceptions_hint">你点过「继续访问」的无效证书。撤销要重启 App 才生效 —— 同一次运行里 WebView 自己还记着那次放行。</string>
+    <string name="ssl_exceptions_title">证书例外</string>
+    <string name="ssl_exceptions_empty">没有证书例外</string>
+    <string name="ssl_fingerprint">指纹 %1$s</string>
+    <string name="toast_ssl_exception_cleared">已撤销 %1$s 的证书例外（重启 App 后生效）</string>
+    <string name="toast_ssl_exceptions_cleared">已撤销全部证书例外（重启 App 后生效）</string>
+    <string name="toast_no_ssl_exceptions">没有证书例外</string>
 
     <!-- ==================== 全局设置 ==================== -->
     <string name="settings_title">全局设置</string>

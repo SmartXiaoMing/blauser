@@ -37,15 +37,21 @@ object PageActions {
         return starred
     }
 
-    fun copyUrl(activity: AppCompatActivity, url: String?) {
+    /**
+     * 复制网址。
+     *
+     * 收 [Context] 而不是 Activity：[UrlListDialog] 手里只有 Context，而长按复制
+     * 是它的一项内建行为（见那边的注释）。函数体本来也只用得到 getSystemService 和 Toast。
+     */
+    fun copyUrl(context: Context, url: String?) {
         val target = url?.takeIf { it.isNotBlank() } ?: run {
-            toast(activity, activity.getString(R.string.toast_no_url_to_copy))
+            toast(context, context.getString(R.string.toast_no_url_to_copy))
             return
         }
-        clipboard(activity).setPrimaryClip(ClipData.newPlainText("url", target))
+        clipboard(context).setPrimaryClip(ClipData.newPlainText("url", target))
         // Android 13 起系统自己会弹复制提示，别重复弹
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
-            toast(activity, activity.getString(R.string.toast_copied))
+            toast(context, context.getString(R.string.toast_copied))
         }
     }
 
@@ -174,9 +180,9 @@ object PageActions {
             .show()
     }
 
-    private fun clipboard(activity: AppCompatActivity): ClipboardManager =
-        activity.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    private fun clipboard(context: Context): ClipboardManager =
+        context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
 
-    private fun toast(activity: AppCompatActivity, text: String) =
-        Toast.makeText(activity, text, Toast.LENGTH_SHORT).show()
+    private fun toast(context: Context, text: String) =
+        Toast.makeText(context, text, Toast.LENGTH_SHORT).show()
 }

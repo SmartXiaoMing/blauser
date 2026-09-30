@@ -92,8 +92,17 @@ object WebViewFactory {
         /** 主文档加载失败（域名解析不了、连不上、超时等） */
         fun onPageError(error: PageError)
 
-        /** SSL 证书校验失败。注意它**不会**走 onPageError */
-        fun onSslError(error: SslError)
+        /**
+         * SSL 证书校验失败。注意它**不会**走 onPageError。
+         *
+         * 实现方**必须**在某个时刻调用 handler 的 cancel() 或 proceed()，二选一 ——
+         * 否则这次加载会一直挂着（同 [onPermissionRequest]）。
+         * 放行与否是用户的决定，所以这里不替实现方做。
+         *
+         * [error] 的 url 未必是当前页面：子资源（图片 / XHR / 网页里的 `wss://`）
+         * 出错时它是那个资源的地址，域名可能完全不同。要记「已放行」得记在它的域名上。
+         */
+        fun onSslError(error: SslError, handler: SslErrorHandler)
 
         /** window.open() / target="_blank" 探到的目标地址，交给 Activity 开新标签页 */
         fun onNewWindowRequested(url: String)
@@ -149,6 +158,24 @@ object WebViewFactory {
             WebViewClient.ERROR_AUTHENTICATION -> R.string.err_auth
             WebViewClient.ERROR_UNSAFE_RESOURCE -> R.string.err_unsafe_resource
             else -> R.string.err_unknown
+        }
+    )
+
+    /**
+     * 把证书错误的 primaryError 翻译成人话。
+     *
+     * 原始错误码（1、3、5…）对用户没有任何意义，而「过期」和「域名不匹配」
+     * 是完全不同的两件事 —— 用户据此才知道自己正在接受什么。
+     */
+    fun describeSslError(context: Context, primaryError: Int): String = context.getString(
+        when (primaryError) {
+            SslError.SSL_EXPIRED -> R.string.ssl_reason_expired
+            SslError.SSL_NOTYETVALID -> R.string.ssl_reason_not_yet_valid
+            SslError.SSL_IDMISMATCH -> R.string.ssl_reason_mismatch
+            SslError.SSL_UNTRUSTED -> R.string.ssl_reason_untrusted
+            SslError.SSL_DATE_INVALID -> R.string.ssl_reason_date_invalid
+            SslError.SSL_INVALID -> R.string.ssl_reason_invalid
+            else -> R.string.ssl_reason_unknown
         }
     )
 
@@ -326,15 +353,21 @@ object WebViewFactory {
 
             /**
              * 证书校验失败走的不是 onReceivedError。默认实现直接取消加载，
-             * 页面会停在空白 —— 所以必须接管，交给自定义错误页说明原因。
+             * 页面会停在空白 —— 所以必须接管。
              *
-             * 刻意**不提供「继续访问」**：接受无效证书等于放弃中间人攻击防护。
+             * **不在这里 cancel()**：自签名 / 内网证书很常见，放不放行该由用户决定，
+             * 这里只把 handler 交出去，由实现方弹窗后解决掉它。
+             *
+             * 子资源的证书错误也会走到这里（图片、XHR、网页里的 `wss://`）——
+             * 这是 WebView 与 Chrome 的**刻意差异**，Chromium 为此专门加了 resource type
+             * 管线（提交说明：*"the Chromium based webview needs to process and pass
+             * SslErrors to the application even for the non-Main-Frame resource types"*）。
+             * 好处是自签名 wss 也能被「继续访问」救回来；代价是 error.url 未必是页面地址。
              */
             override fun onReceivedSslError(
                 view: WebView, handler: SslErrorHandler, error: SslError
             ) {
-                handler.cancel()
-                cb.onSslError(error)
+                cb.onSslError(error, handler)
             }
         }
 

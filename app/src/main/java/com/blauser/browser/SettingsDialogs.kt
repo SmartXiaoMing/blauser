@@ -6,6 +6,7 @@ import android.widget.ArrayAdapter
 import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.Spinner
+import android.widget.TextView
 import android.widget.Toast
 import androidx.annotation.StringRes
 import androidx.appcompat.app.AlertDialog
@@ -97,6 +98,21 @@ object SettingsDialogs {
             SettingsManager.SEARCH_ENGINES
                 .indexOfFirst { it.key == curEngine }.coerceAtLeast(0)
         )
+
+        // --- 证书例外 ---
+        val tvSslExceptions = view.findViewById<TextView>(R.id.tvSslExceptions)
+        fun refreshSslExceptions() {
+            val count = SslExceptionStore.all(activity).size
+            tvSslExceptions.text = if (count == 0) {
+                activity.getString(R.string.settings_ssl_exceptions_none)
+            } else {
+                activity.getString(R.string.settings_ssl_exceptions_count, count)
+            }
+        }
+        refreshSslExceptions()
+        tvSslExceptions.setOnClickListener {
+            showSslExceptions(activity) { refreshSslExceptions() }
+        }
 
         AlertDialog.Builder(activity)
             .setTitle(R.string.settings_title)
@@ -216,6 +232,25 @@ object SettingsDialogs {
             )
         }
 
+        // --- 证书例外（只有真的接受过这个域名的无效证书时才显示）---
+        val sslRow = view.findViewById<View>(R.id.sslExceptionRow)
+        val tvSslException = view.findViewById<TextView>(R.id.tvSiteSslException)
+        fun refreshSslRow() {
+            val fingerprint = SslExceptionStore.fingerprintFor(activity, host)
+            sslRow.visibility = if (fingerprint == null) View.GONE else View.VISIBLE
+            if (fingerprint != null) {
+                tvSslException.text = activity.getString(
+                    R.string.site_ssl_exception, fingerprint.take(FINGERPRINT_PREVIEW)
+                )
+            }
+        }
+        refreshSslRow()
+        view.findViewById<View>(R.id.btnClearSslException).setOnClickListener {
+            SslExceptionStore.revoke(activity, host)
+            refreshSslRow()
+            toast(activity, activity.getString(R.string.toast_ssl_exception_cleared, host))
+        }
+
         AlertDialog.Builder(activity)
             .setTitle(activity.getString(R.string.site_settings_title, host))
             .setView(view)
@@ -238,11 +273,59 @@ object SettingsDialogs {
             }
             .setNeutralButton(R.string.action_clear) { _, _ ->
                 SiteSettingsManager.clear(activity, host)
+                // 「清除本站的特殊设置」也包括证书例外 —— 用户按的是「这个站点我什么都不要
+                // 特殊处理」，留一条永久放行在那儿不符合预期。它是另一份存储，得显式清
+                SslExceptionStore.revoke(activity, host)
                 onApplied()
                 toast(activity, activity.getString(R.string.toast_site_settings_cleared, host))
             }
             .setNegativeButton(R.string.action_cancel, null)
             .show()
+    }
+
+    // ==================== 证书例外清单 ====================
+
+    /**
+     * 已接受的无效证书清单。
+     *
+     * 必须有地方能撤销：例外是**永久**的，而用户当初点「继续访问」时多半只想着
+     * 「先把这页打开」。尤其子资源（如网页里的 `wss://`）的例外 ——
+     * 用户可能永远走不到那个域名的页面上，只靠「本站设置」里的入口撤销不了。
+     */
+    private fun showSslExceptions(activity: AppCompatActivity, onChanged: () -> Unit) {
+        val exceptions = SslExceptionStore.all(activity)
+        if (exceptions.isEmpty()) {
+            toast(activity, activity.getString(R.string.toast_no_ssl_exceptions))
+            return
+        }
+        UrlListDialog(
+            context = activity,
+            title = activity.getString(R.string.ssl_exceptions_title),
+            emptyText = activity.getString(R.string.ssl_exceptions_empty),
+            rows = exceptions.map { (host, fingerprint) ->
+                UrlListDialog.Row(
+                    title = host,
+                    url = host,
+                    // 副标题放指纹而不是重复一遍域名：同一个域名换过证书时，
+                    // 用户能看出记下的到底是哪一张
+                    subtitle = activity.getString(
+                        R.string.ssl_fingerprint, fingerprint.take(FINGERPRINT_PREVIEW)
+                    )
+                )
+            },
+            // 这里没有「点开某个页面」这回事，点一下不做任何事（对话框照常关闭）
+            onSelect = {},
+            onDelete = { host ->
+                SslExceptionStore.revoke(activity, host)
+                toast(activity, activity.getString(R.string.toast_ssl_exception_cleared, host))
+                onChanged()
+            },
+            onClearAll = {
+                exceptions.forEach { SslExceptionStore.revoke(activity, it.first) }
+                toast(activity, activity.getString(R.string.toast_ssl_exceptions_cleared))
+                onChanged()
+            }
+        ).show()
     }
 
     // ==================== 重载确认 ====================
@@ -315,6 +398,14 @@ object SettingsDialogs {
         )
         return w to h
     }
+
+    /**
+     * 指纹在界面上只显示前若干位。
+     *
+     * 完整指纹是 64 个十六进制字符，塞进设置面板只会变成一坨噪声；前 8 位足够
+     * 让人区分「我记的是不是换证书前的那一张」—— 真要核对全量，那是另一回事。
+     */
+    private const val FINGERPRINT_PREVIEW = 8
 
     private fun spinnerAdapter(activity: AppCompatActivity, labels: List<String>) =
         ArrayAdapter(activity, android.R.layout.simple_spinner_item, labels).apply {

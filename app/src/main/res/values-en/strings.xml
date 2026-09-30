@@ -80,7 +80,8 @@
     <!-- Error code and raw description, e.g. "error code -2 · net::ERR_INTERNET_DISCONNECTED" -->
     <string name="error_detail">Error %1$d</string>
     <string name="error_detail_with_desc">Error %1$d · %2$s</string>
-    <string name="error_ssl_detail">Certificate problem · %1$d</string>
+    <!-- The reason, not the raw error code — the user needs to know what they're accepting -->
+    <string name="error_ssl_detail">Certificate problem · %1$s</string>
 
     <!-- WebView error codes → plain language -->
     <string name="err_host_lookup">Site not found. The domain may be misspelled, or this network can\'t resolve it.</string>
@@ -97,6 +98,41 @@
     <string name="err_auth">The server requires authentication.</string>
     <string name="err_unsafe_resource">This resource was blocked by a security policy.</string>
     <string name="err_unknown">An unknown error occurred.</string>
+
+    <!-- Certificate error primaryError → plain language -->
+    <string name="ssl_reason_expired">The certificate has expired</string>
+    <string name="ssl_reason_not_yet_valid">The certificate isn\'t valid yet (a wrong device clock does this too)</string>
+    <string name="ssl_reason_mismatch">The certificate is for a different domain than the one you\'re visiting</string>
+    <string name="ssl_reason_untrusted">The certificate wasn\'t issued by a trusted authority (self-signed ones fall here)</string>
+    <string name="ssl_reason_date_invalid">The certificate\'s validity period can\'t be verified</string>
+    <string name="ssl_reason_invalid">The certificate itself is invalid</string>
+    <string name="ssl_reason_unknown">Reason unknown</string>
+
+    <!--
+      Certificate exceptions: reject, or accept and remember.
+      Two bodies — for subresources the main-frame wording would make a broken
+      image look like the whole site is compromised.
+    -->
+    <string name="ssl_dialog_message_site">The certificate for \"%1$s\" can\'t be verified: %2$s.\n\nContinuing gives up man-in-the-middle protection for this connection — data could be read or altered by a third party.\n\nOnce you confirm, this certificate for this domain is remembered permanently. A different certificate will ask again.</string>
+    <string name="ssl_dialog_message_resource">A resource this page requested (%1$s) has a certificate that can\'t be verified: %2$s.\n\nContinuing gives up man-in-the-middle protection for this connection.\n\nOnce you confirm, this certificate for this domain is remembered permanently. A different certificate will ask again.</string>
+    <string name="ssl_action_proceed">Continue anyway (unsafe)</string>
+    <string name="toast_ssl_remembered">Remembered this certificate for %1$s — it won\'t be asked about again</string>
+    <string name="toast_ssl_proceeded_incognito">Allowed this time (incognito tabs don\'t record exceptions)</string>
+    <string name="toast_ssl_proceeded_unrecorded">Allowed this time, but the certificate couldn\'t be recorded — you\'ll be asked again</string>
+
+    <!-- Revoking certificate exceptions -->
+    <string name="site_ssl_exception">Invalid certificate accepted · fingerprint %1$s</string>
+    <string name="site_ssl_exception_hint">This certificate for this domain is let through without asking. A different certificate will ask again.</string>
+    <string name="settings_ssl_exceptions">Certificate exceptions</string>
+    <string name="settings_ssl_exceptions_none">No invalid certificates accepted</string>
+    <string name="settings_ssl_exceptions_count">%1$d domains accepted · tap to manage</string>
+    <string name="settings_ssl_exceptions_hint">Invalid certificates you chose to continue through. Revoking takes effect only after restarting the app — for the rest of this run WebView still remembers letting it through.</string>
+    <string name="ssl_exceptions_title">Certificate exceptions</string>
+    <string name="ssl_exceptions_empty">No certificate exceptions</string>
+    <string name="ssl_fingerprint">Fingerprint %1$s</string>
+    <string name="toast_ssl_exception_cleared">Revoked the certificate exception for %1$s (takes effect after restarting the app)</string>
+    <string name="toast_ssl_exceptions_cleared">Revoked all certificate exceptions (takes effect after restarting the app)</string>
+    <string name="toast_no_ssl_exceptions">There are no certificate exceptions</string>
 
     <!-- ==================== Global settings ==================== -->
     <string name="settings_title">Global settings</string>

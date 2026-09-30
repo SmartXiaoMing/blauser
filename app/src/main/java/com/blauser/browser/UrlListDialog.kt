@@ -14,10 +14,13 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 
 /**
- * 通用网址列表对话框：收藏夹与历史记录共用。
+ * 通用网址列表对话框：收藏夹、历史记录、证书例外清单共用。
  *
- * 两者的差别只有「删除按钮」还是「清空按钮」，为此各写一份几乎一样的类和布局
+ * 几者的差别只有「删除按钮」还是「清空按钮」，为此各写一份几乎一样的类和布局
  * 不划算，所以做成配置驱动 —— 传 null 就等于关掉那一项。
+ *
+ * **长按任意一行即复制该行的网址**，是内建行为而不是可配项：这个对话框里装的全是
+ * 网址，「把它拷出来」是唯一一个对所有列表都成立的动作。
  */
 class UrlListDialog(
     context: Context,
@@ -31,8 +34,18 @@ class UrlListDialog(
     private val onClearAll: (() -> Unit)? = null
 ) : Dialog(context) {
 
-    /** [badge] 为 null 时不显示角标 */
-    data class Row(val title: String, val url: String, val badge: String? = null)
+    /**
+     * [badge] 为 null 时不显示角标。
+     *
+     * [subtitle] 用于替掉默认的副标题（角标 · 网址）—— 证书例外清单的「网址」就是
+     * 标题本身，重复显示没有意义，那里改为显示证书指纹。
+     */
+    data class Row(
+        val title: String,
+        val url: String,
+        val badge: String? = null,
+        val subtitle: String? = null
+    )
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -88,13 +101,22 @@ class UrlListDialog(
 
             // 标题就是网址时（没抓到标题的页面，比如加载失败的那种）不要再把网址
             // 重复显示一遍当副标题；只有角标（「已打开」）还值得占一行
-            val subtitle = row.badge?.let { "$it · ${row.url}" } ?: row.url
+            val subtitle = row.subtitle
+                ?: row.badge?.let { "$it · ${row.url}" }
+                ?: row.url
             holder.tvSubtitle.isVisible = subtitle != title
             holder.tvSubtitle.text = subtitle
 
             holder.itemView.setOnClickListener {
                 onSelect(row.url)
                 dismiss()
+            }
+
+            // 长按复制。这里用 Dialog 的 context（不是 Activity）：复制只需要
+            // 剪贴板和 Toast，没有 Activity 依赖
+            holder.itemView.setOnLongClickListener {
+                PageActions.copyUrl(context, row.url)
+                true
             }
 
             holder.btnDelete.isVisible = onDelete != null

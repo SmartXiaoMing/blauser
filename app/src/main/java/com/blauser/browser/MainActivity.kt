@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.net.http.SslError
 import android.os.Build
 import android.os.Bundle
 import android.view.Gravity
@@ -13,6 +14,7 @@ import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.webkit.GeolocationPermissions
 import android.webkit.PermissionRequest
+import android.webkit.SslErrorHandler
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebView
@@ -23,6 +25,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
@@ -75,6 +78,17 @@ class MainActivity : AppCompatActivity(),
 
     /** 最近一次加载失败的地址，供错误页的「重试」用 */
     private var lastErrorUrl: String = ""
+
+    /**
+     * 等用户决定「拒绝 / 继续访问」的证书错误处理器。同一时刻最多一个。
+     *
+     * 必须始终有归宿：onDestroy 里兜底 cancel，否则那个标签页销毁之后，
+     * 那次加载会一直挂在 WebView 里等一个永远不来的答复。
+     */
+    private var pendingSslHandler: SslErrorHandler? = null
+
+    /** 当前挂着的证书对话框。新错误到来时先撤掉它，避免弹窗堆叠 */
+    private var sslDialog: AlertDialog? = null
 
     /** 刘海/挖孔的高度，悬浮球不能进这块区域。inset 回调里更新 */
     private var ballSafeTop: Int = 0
@@ -329,6 +343,12 @@ class MainActivity : AppCompatActivity(),
 
     override fun onDestroy() {
         ball?.dismissMenu()
+        // 还挂着的证书对话框与 handler 都要收尾。dismiss() **不会**触发取消监听，
+        // 所以 handler 得单独 cancel 一次，否则这个标签页销毁后那次加载会一直悬着。
+        sslDialog?.dismiss()
+        sslDialog = null
+        pendingSslHandler?.cancel()
+        pendingSslHandler = null
         webView?.let {
             binding.webContainer.removeView(it)
             it.stopLoading()
@@ -524,12 +544,138 @@ class MainActivity : AppCompatActivity(),
         )
     }
 
-    override fun onSslError(error: android.net.http.SslError) {
+    /**
+     * 证书校验失败：交给用户决定「拒绝」还是「继续访问」，继续则永久记住。
+     *
+     * 三个细节值得说明：
+     *  - **域名取自 error.url 而不是 currentUrl**。子资源（含网页里的 `wss://`）出错时
+     *    两者不同，例外要记在实际出错的那个域名上，否则那个 wss 每次都会重新问。
+     *  - **拒绝时只有主文档失败才盖错误页**。子资源出错时页面本身好好的，
+     *    拿错误页盖上去等于把已经渲染好的内容藏了。
+     *  - **无痕标签不落盘**，只放行本次 —— 那正是「无痕」的意义。
+     */
+    override fun onSslError(error: SslError, handler: SslErrorHandler) {
+        val host = errorHost(error)
+        val fingerprint = SslExceptionStore.fingerprintOf(error.certificate)
+
+        // 这个域名的这张证书已经接受过 → 直接放行，不再打扰
+        if (SslExceptionStore.isTrusted(this, host, fingerprint)) {
+            handler.proceed()
+            return
+        }
+
+        // 上一个还没收尾又来了新的：先摘掉挂着的引用再撤对话框。
+        // 顺序不能反 —— 撤对话框会触发它自己的取消监听，而那个监听要看
+        // pendingSslHandler 是不是自己，先摘掉它才会提前返回、不去盖错误页。
+        val previous = pendingSslHandler
+        pendingSslHandler = null
+        sslDialog?.cancel()
+        sslDialog = null
+        previous?.cancel()
+
+        pendingSslHandler = handler
+
+        val mainFrame = isMainFrameSslError(error)
+        val reason = WebViewFactory.describeSslError(this, error.primaryError)
+
+        val dialog = AlertDialog.Builder(this)
+            .setTitle(R.string.error_title_ssl)
+            .setMessage(
+                getString(
+                    if (mainFrame) R.string.ssl_dialog_message_site
+                    else R.string.ssl_dialog_message_resource,
+                    sslTarget(error, host),
+                    reason
+                )
+            )
+            .setPositiveButton(R.string.ssl_action_proceed) { _, _ ->
+                pendingSslHandler = null
+                rememberSslException(host, fingerprint)
+                handler.proceed()
+            }
+            .setNegativeButton(R.string.action_cancel) { _, _ ->
+                pendingSslHandler = null
+                rejectSsl(error, mainFrame)
+                handler.cancel()
+            }
+            // 返回键 / 点空白也必须把 handler 解决掉，否则这次加载永远挂着
+            .setOnCancelListener {
+                // 被新错误顶替而撤掉的情况下，挂着的已经不是自己了，什么都不该做
+                if (pendingSslHandler !== handler) return@setOnCancelListener
+                pendingSslHandler = null
+                rejectSsl(error, mainFrame)
+                handler.cancel()
+            }
+            .create()
+
+        sslDialog = dialog
+        dialog.show()
+    }
+
+    /** 出错的域名。取不到就退回当前页面 —— 总比没有强 */
+    private fun errorHost(error: SslError): String? =
+        SiteSettingsManager.hostOf(error.url) ?: SiteSettingsManager.hostOf(currentUrl)
+
+    /**
+     * 对话框正文里那个给用户看的「出错对象」。
+     *
+     * 子资源出错时带上协议（`wss://nas.local`）：用户才知道这是网页里连的 WebSocket，
+     * 而不是这个网站本身的页面出了问题。
+     */
+    private fun sslTarget(error: SslError, host: String?): String {
+        val url = error.url.orEmpty()
+        if (host.isNullOrEmpty()) return url
+        val scheme = Uri.parse(url).scheme
+        return if (scheme.isNullOrEmpty()) host else "$scheme://$host"
+    }
+
+    /**
+     * 这次证书错误是不是主文档的。
+     *
+     * 子资源（图片 / XHR / 网页里的 `wss://`）出错时页面本身是好的，不能拿错误页把它盖掉。
+     * 判断方式是「报错的域名是不是当前正在加载的那个」：主文档失败时两者一致，
+     * 跨域名的子资源（最常见的就是 wss 连到另一台机器）不一致。
+     *
+     * Chromium 的说明里提到重定向的证书错误可能被算成非主文档 —— 这里判错的代价
+     * 只是少盖一张错误页，不影响放不放行。
+     */
+    private fun isMainFrameSslError(error: SslError): Boolean {
+        val rendered = webView?.url.orEmpty()
+        // 页面还没有任何已提交的内容（首次导航就失败）→ 一定是主文档
+        if (rendered.isBlank() || rendered == "about:blank") return true
+        return SiteSettingsManager.hostOf(error.url) == SiteSettingsManager.hostOf(currentUrl)
+    }
+
+    /**
+     * 记住这次「继续访问」。
+     *
+     * 记不成的情形分别给不同提示 —— 笼统说一句「已放行」的话，
+     * 用户下次又被问会以为设置没生效。
+     */
+    private fun rememberSslException(host: String?, fingerprint: String?) {
+        if (isIncognito) {
+            toast(getString(R.string.toast_ssl_proceeded_incognito))
+            return
+        }
+        if (host == null || fingerprint == null) {
+            toast(getString(R.string.toast_ssl_proceeded_unrecorded))
+            return
+        }
+        SslExceptionStore.trust(this, host, fingerprint)
+        toast(getString(R.string.toast_ssl_remembered, host))
+    }
+
+    /** 用户拒绝了这次连接。主文档失败时给一张错误页，别让人对着空白屏 */
+    private fun rejectSsl(error: SslError, mainFrame: Boolean) {
+        if (!mainFrame) return
         showErrorPage(
             title = getString(R.string.error_title_ssl),
             reason = getString(R.string.error_ssl_reason),
             url = error.url.orEmpty(),
-            detail = getString(R.string.error_ssl_detail, error.primaryError)
+            detail = getString(
+                R.string.error_ssl_detail,
+                WebViewFactory.describeSslError(this, error.primaryError)
+            )
         )
     }
 
@@ -1076,6 +1222,11 @@ class MainActivity : AppCompatActivity(),
             row.setOnClickListener {
                 if (!isCurrent) TabRegistry.switchTo(this, tab.key)
             }
+            // 长按复制这个标签的网址。空白标签没有网址，copyUrl 会给出提示
+            row.setOnLongClickListener {
+                PageActions.copyUrl(this, tab.url)
+                true
+            }
             page.openTabsContainer.addView(row)
         }
 
@@ -1099,6 +1250,10 @@ class MainActivity : AppCompatActivity(),
                 }
             }
             row.setOnClickListener { openUrlReusingTab(bm.url) }
+            row.setOnLongClickListener {
+                PageActions.copyUrl(this, bm.url)
+                true
+            }
             page.bookmarksContainer.addView(row)
         }
     }

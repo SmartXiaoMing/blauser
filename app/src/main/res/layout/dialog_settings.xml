@@ -166,6 +166,26 @@
             style="@style/SettingsHint"
             android:text="@string/settings_search_hint" />
 
+        <!-- ===== 证书例外 ===== -->
+        <TextView
+            style="@style/SettingsLabel"
+            android:text="@string/settings_ssl_exceptions" />
+
+        <TextView
+            android:id="@+id/tvSslExceptions"
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:gravity="center_vertical"
+            android:paddingStart="4dp"
+            android:paddingEnd="4dp"
+            android:textSize="14sp"
+            android:textColor="@color/text_primary"
+            android:background="?attr/selectableItemBackground" />
+
+        <TextView
+            style="@style/SettingsHint"
+            android:text="@string/settings_ssl_exceptions_hint" />
+
         <TextView
             style="@style/SettingsHint"
             android:layout_marginTop="16dp"

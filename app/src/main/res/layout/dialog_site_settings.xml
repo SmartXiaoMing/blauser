@@ -193,6 +193,52 @@
             android:layout_marginTop="14dp"
             android:text="@string/site_inherit_hint" />
 
+        <!--
+          证书例外：只有真的接受过这个域名的无效证书时才出现。
+          没有例外时整行不显示 —— 摆一行「暂无」只是占地方。
+        -->
+        <LinearLayout
+            android:id="@+id/sslExceptionRow"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/tvSiteSslException"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/text_primary" />
+
+                <TextView
+                    style="@style/SettingsHint"
+                    android:text="@string/site_ssl_exception_hint" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/btnClearSslException"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:layout_marginStart="10dp"
+                android:paddingStart="14dp"
+                android:paddingEnd="14dp"
+                android:gravity="center"
+                android:text="@string/action_clear"
+                android:textSize="13sp"
+                android:textColor="@color/text_primary"
+                android:background="@drawable/bg_tab_inactive" />
+        </LinearLayout>
+
     </LinearLayout>
 
 </ScrollView>
