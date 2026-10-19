@@ -16,6 +16,7 @@
 - Android + Kotlin + WebView + viewBinding
 - 注入 viewport JS 完成缩放，固定档位下同步伪装 `window.screen`
 - 已注册为系统默认浏览器（Intent Filter http/https）
+- 已注册为本地 HTML 文件的打开方式（file:// / content:// + text/html）
 - compileSdk 34 / targetSdk 34 / minSdk 21
 - AGP 8.5.2 + Gradle 8.7（wrapper）+ Kotlin 1.9.24，JDK 17+
 
@@ -34,6 +35,10 @@ app/src/main/java/com/blauser/browser/
 ├── SettingsDialogs.kt       # 全局设置 / 本站设置两个面板
 ├── PageActions.kt           # 收藏 / 历史 / 复制 / 分享 / 桌面快捷方式 / 审查元素
 ├── DownloadHandler.kt       # 下载（走系统 DownloadManager）
+├── UpdateChecker.kt         # GitHub Releases 检查、版本比较、每日节流（纯逻辑有单测）
+├── UpdateDownloader.kt      # 更新包后台下载（进度 / 取消 / 校验）
+├── UpdateInstaller.kt       # APK 校验、未知来源权限、FileProvider 安装
+├── UpdateDialogs.kt         # 检查 / 更新说明 / 下载进度对话框
 ├── Incognito.kt             # 无痕标签的多 profile 隔离（Android 9+）
 ├── FloatingBallView.kt      # 半球悬浮球与下拉菜单（菜单项数据驱动）
 ├── BookmarkManager.kt       # 收藏夹存储（含旧数据迁移）

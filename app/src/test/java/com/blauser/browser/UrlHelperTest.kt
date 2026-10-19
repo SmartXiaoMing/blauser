@@ -176,4 +176,25 @@ class UrlHelperTest {
         assertFalse(UrlHelper.isHttpScheme("intent"))
         assertFalse(UrlHelper.isHttpScheme(null))
     }
+
+    /**
+     * isFileUrl 决定是否给 WebView 打开 allowFileAccess，是安全开关：
+     * 只认 file scheme，网页和 content:// 都不能把它打开。
+     */
+    @Test
+    fun `isFileUrl 只认 file scheme`() {
+        assertTrue(UrlHelper.isFileUrl("file:///sdcard/x.html"))
+        assertTrue(UrlHelper.isFileUrl("FILE:///sdcard/x.html"))
+        assertTrue(UrlHelper.isFileUrl("file:///android_asset/demo.html"))
+
+        listOf(
+            "https://a.com/x.html",
+            "content://media/external/file/1",
+            "javascript:alert(1)",
+            "blauser://tab/main",
+            ""
+        ).forEach { assertFalse(it, UrlHelper.isFileUrl(it)) }
+
+        assertFalse(UrlHelper.isFileUrl(null))
+    }
 }

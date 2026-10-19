@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  FileProvider 只暴露更新包目录，不暴露整个应用私有目录。
+  安装器拿到的 content:// 就落在这里（见 UpdateInstaller）。
+-->
+<paths>
+    <files-path
+        name="updates"
+        path="updates/" />
+</paths>

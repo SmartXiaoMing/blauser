@@ -4,6 +4,9 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- 应用内下载更新后调起系统安装器。Android 8+ 还需用户在设置里允许本应用安装未知应用 -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
     <!-- 网页请求摄像头 / 麦克风时用（onPermissionRequest）。不声明的话网页那边直接被拒 -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
@@ -90,12 +93,68 @@
                 <data android:scheme="https" />
             </intent-filter>
 
+            <!-- 本地 HTML：文件管理器 / 其他 App 用 ACTION_VIEW 打开 .html/.htm 时出现本 App -->
+
+            <!--
+              Android 7 起文件通常以 content:// 交给接收方（FileProvider / MediaStore）。
+              读取授权只发给收到 Intent 的这个实例，所以 MainActivity 会先把内容
+              复制到缓存，再转交给新标签页（见 LocalFileOpener）。
+            -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="content" />
+                <data android:mimeType="text/html" />
+                <data android:mimeType="application/xhtml+xml" />
+                <data android:mimeType="text/xhtml" />
+            </intent-filter>
+
+            <!-- 老式 file:// 路径 -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="file" />
+                <data android:mimeType="text/html" />
+                <data android:mimeType="application/xhtml+xml" />
+                <data android:mimeType="text/xhtml" />
+            </intent-filter>
+
+            <!--
+              兜底：部分文件管理器不填 MIME（type 为 */* 或空），只按扩展名匹配。
+              MIME 与 scheme 在同一个 filter 里是「与」的关系，没法表达
+              「file 或 content，且是 HTML」，所以拆成多条、按来源分别声明。
+            -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="file" />
+                <data android:pathPattern=".*\\.html?" />
+                <data android:pathPattern=".*\\.xhtml?" />
+                <data android:pathPattern=".*\\.xht" />
+            </intent-filter>
+
             <!-- 兜底：处理其他 app 传来的 http/https deeplink，host 不限 -->
             <!-- 注意：host="*" 在 Android 中无效，必须省略 host 或指定具体域名 -->
             <!-- 只有 scheme + DEFAULT + BROWSABLE 才能正确接收任意 http/https deeplink -->
             <!-- 上面两条（无 host）就是正确写法，此处无需重复 -->
 
         </activity>
+
+        <!--
+          更新包通过 FileProvider 以 content:// 交给系统安装器。
+          API 24+ 不允许把 file:// 放进 Intent（FileUriExposedException）。
+        -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
     </application>
 
 </manifest>

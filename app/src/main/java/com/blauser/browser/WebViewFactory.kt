@@ -227,7 +227,9 @@ object WebViewFactory {
             // 老站点直接搞坏（一个 http 图片就能让整页资源加载失败）。
             mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
 
-            // 纵深防御：地址栏已经拦了 file://，但 WebView 这层也别开着。
+            // 纵深防御：默认关掉本地文件访问。只有打开本地 HTML 的标签页会临时打开
+            // （见 MainActivity.loadUrl / onBeforeNavigate），用来读 HTML 旁边的资源。
+            // 地址栏已经拦了 file://，但 WebView 这层也别默认开着 ——
             // API 30 以下 setAllowFileAccess 默认是 true，恶意页面若能把顶层
             // 导航到 file:///data/data/<包名>/... 就能读到私有目录。
             allowFileAccess = false

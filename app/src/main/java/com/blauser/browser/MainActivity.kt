@@ -32,7 +32,9 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.lifecycle.Lifecycle
 import com.blauser.browser.databinding.ActivityMainBinding
+import java.io.File
 import kotlin.math.roundToInt
 
 /**
@@ -75,6 +77,33 @@ class MainActivity : AppCompatActivity(),
 
     private var currentUrl: String = ""
     private var currentTitle: String = ""
+
+    /**
+     * 外部 ACTION_VIEW 送来的地址，已转成可加载的形式（content:// 会先复制到缓存）。
+     *
+     * 正常情况下它被转交给一个新标签页；只有标签数到上限、转交失败时，
+     * 才由本实例兜底加载（见 restoreOrLoad）。
+     */
+    private var pendingExternalUrl: String? = null
+
+    // ==================== 检查更新状态 ====================
+
+    /** 手动检查的会话号：取消等待框 / 发起新检查后，旧回调作废 */
+    private var updateCheckToken = 0
+
+    private var checkingDialog: AlertDialog? = null
+    private var updateDialog: AlertDialog? = null
+    private var downloadProgressDialog: UpdateDialogs.DownloadProgressDialog? = null
+    private var installPermissionDialog: AlertDialog? = null
+
+    /** 已下载、等待调起系统安装器的 APK */
+    private var pendingInstallApk: File? = null
+
+    /** 正在去「未知来源」设置页；期间 onResume 不要重复弹窗 */
+    private var waitingForInstallPermission = false
+
+    /** 当前下载对应的版本号，用于下载完成后的 APK 校验 */
+    private var downloadingVersion: String? = null
 
     /** 最近一次加载失败的地址，供错误页的「重试」用 */
     private var lastErrorUrl: String = ""
@@ -168,6 +197,25 @@ class MainActivity : AppCompatActivity(),
         }
     }
 
+    /**
+     * 从「安装未知应用」设置页返回。
+     *
+     * **不能依赖 resultCode**：系统设置页返回的永远是 RESULT_CANCELED，
+     * 必须重新查 canRequestPackageInstalls() 才知道用户到底开没开。
+     */
+    private val installPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) {
+        waitingForInstallPermission = false
+        val file = pendingInstallApk ?: return@registerForActivityResult
+        if (UpdateInstaller.needsUnknownSourcesPermission(this)) {
+            pendingInstallApk = null
+            toast(getString(R.string.update_install_permission_denied))
+        } else {
+            requestInstallNow(file)
+        }
+    }
+
     private data class Download(
         val url: String,
         val userAgent: String?,
@@ -192,6 +240,7 @@ class MainActivity : AppCompatActivity(),
         // 同一个网址被打开两次会撞成同一个 key，两个标签的状态互相覆盖、关一个还关俩。
         // 所以这里不就地加载，而是开一个带 uuid 的正经标签页，自己立刻退场。
         val handoffUrl = if (savedInstanceState == null) externalUrlFrom(intent) else null
+        pendingExternalUrl = handoffUrl
         if (handoffUrl != null && openNewTab(handoffUrl)) {
             // 本实例不承载任何页面。给 tabKey 一个没人引用的值，
             // 免得 onDestroy 清理时误删了别的标签的状态。
@@ -210,13 +259,26 @@ class MainActivity : AppCompatActivity(),
 
         restoreOrLoad(savedInstanceState)
         persistState()
+
+        // 从「安装未知应用」设置页返回时 Activity 可能被重建，待安装包路径要能恢复
+        savedInstanceState?.getString(KEY_PENDING_UPDATE_APK)?.let { path ->
+            File(path).takeIf { it.isFile }?.let { pendingInstallApk = it }
+        }
+
+        // 每天首次启动静默检查一次；失败不打扰，只有发现新版本才弹窗
+        UpdateChecker.maybeAutoCheck(
+            activity = this,
+            freshLaunch = savedInstanceState == null,
+            incognito = isIncognito,
+            onUpdate = { release, current -> showUpdateFound(release, current) }
+        )
     }
 
     /**
      * 三种恢复来源，按优先级：
      *  1. 进程/配置变化重建：WebView 历史在 bundle 里，优先恢复它（保住前进后退）
      *  2. 本 App 开的新标签、桌面快捷方式：网址在 extra，data 是标签标识
-     *  3. 外部 App 调起的链接：data 本身就是网址
+     *  3. 外部 App 调起的链接 / 本地 HTML：data 是地址本身（本地文件已转成 file://）
      *
      * 第 3 种正常走不到（onCreate 已经转交出去了），只有标签数达上限、转交失败时才落到这里。
      * 兜底也不能把链接吞掉 —— 否则用户点开链接只得到一张空白首页。
@@ -241,12 +303,13 @@ class MainActivity : AppCompatActivity(),
 
         val target = savedUrl.takeIf { it.isNotBlank() }
             ?: intent?.getStringExtra(EXTRA_URL)
-            ?: externalUrlFrom(intent)
+            ?: pendingExternalUrl
         if (!target.isNullOrBlank()) loadUrl(target) else updateNewTabPage()
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
+        pendingInstallApk?.let { outState.putString(KEY_PENDING_UPDATE_APK, it.absolutePath) }
         // 只存 URL：标题由 onReceivedTitle 在页面加载后自然恢复
         outState.putString(KEY_URL, currentUrl)
 
@@ -262,6 +325,17 @@ class MainActivity : AppCompatActivity(),
             // getScrollY 是同步的，正好能在 onSaveInstanceState 里取到；
             // 换用 JS 读 window.scrollY 就不行了 —— 那是异步的，赶不上这次保存。
             outState.putInt(KEY_SCROLL_Y, wv.scrollY)
+        }
+    }
+
+    /**
+     * 下载完成时如果本页不在前台，安装会推迟到这里。
+     * Android 10+ 不允许应用在后台随意拉起安装界面，必须先回到前台。
+     */
+    override fun onResume() {
+        super.onResume()
+        if (!waitingForInstallPermission) {
+            pendingInstallApk?.let { requestInstallNow(it) }
         }
     }
 
@@ -343,6 +417,19 @@ class MainActivity : AppCompatActivity(),
 
     override fun onDestroy() {
         ball?.dismissMenu()
+
+        // 更新相关：只 detach 监听，不取消下载 —— 切走标签页时下载可以继续，
+        // 完成的文件留在 updates 目录，下次检查可以直接安装。
+        UpdateDownloader.detach(updateDownloadListener)
+        checkingDialog?.dismiss()
+        updateDialog?.dismiss()
+        downloadProgressDialog?.dismiss()
+        installPermissionDialog?.dismiss()
+        checkingDialog = null
+        updateDialog = null
+        downloadProgressDialog = null
+        installPermissionDialog = null
+
         // 还挂着的证书对话框与 handler 都要收尾。dismiss() **不会**触发取消监听，
         // 所以 handler 得单独 cancel 一次，否则这个标签页销毁后那次加载会一直悬着。
         sslDialog?.dismiss()
@@ -404,6 +491,10 @@ class MainActivity : AppCompatActivity(),
     private fun loadUrl(url: String) {
         val wv = ensureWebView()
         val resolved = resolveFor(url)
+
+        // 本地 HTML 要读它旁边的 CSS / 图片，必须开文件访问；网页一律关着。
+        // content:// 已经在 externalUrlFrom 里复制成缓存文件，这里只看 file:。
+        wv.settings.allowFileAccess = UrlHelper.isFileUrl(url)
 
         applyRequestSettings(resolved, wv)
         // 必须在 loadUrl 之前把尺寸定下来：注入脚本要按它反算缩放比
@@ -515,8 +606,16 @@ class MainActivity : AppCompatActivity(),
      * 同标签内跳转到别的站点会一直沿用上一个站点的 UA。
      */
     override fun onBeforeNavigate(url: String) {
-        if (!UrlHelper.isWebUrl(url)) return
         val wv = webView ?: return
+
+        // 文件访问开关跟着主文档地址走：本地页要开（读相对资源），
+        // 从本地页跳到网页时立刻收回，别让网页碰得到本地文件。
+        val allowFile = UrlHelper.isFileUrl(url)
+        if (wv.settings.allowFileAccess != allowFile) {
+            wv.settings.allowFileAccess = allowFile
+        }
+
+        if (!UrlHelper.isWebUrl(url)) return
         applyRequestSettings(resolveFor(url), wv)
     }
 
@@ -784,6 +883,10 @@ class MainActivity : AppCompatActivity(),
     override fun onExternalScheme(uri: Uri, hasGesture: Boolean): Boolean {
         val scheme = uri.scheme ?: return false
         if (UrlHelper.isHttpScheme(scheme)) return false
+
+        // 本地 HTML 里的相对链接：留在本标签页继续看。
+        // 反过来不成立 —— 网页里点 file:// 仍然交给外部应用，页面不能自己打开本地文件。
+        if (scheme == "file" && UrlHelper.isFileUrl(currentUrl)) return false
 
         if (!hasGesture) {
             toast(getString(R.string.toast_external_needs_gesture, "$scheme://"))
@@ -1058,7 +1161,183 @@ class MainActivity : AppCompatActivity(),
                     applyResolved(before, R.string.reload_message_global)
                 }
             }
+            FloatingBallView.MenuAction.CHECK_UPDATE -> checkForUpdatesManually()
             FloatingBallView.MenuAction.DEVTOOLS -> PageActions.showDevTools(this, currentUrl)
+        }
+    }
+
+    // ==================== 检查更新 ====================
+
+    /** 悬浮球菜单的手动检查：有等待框、结果一定给反馈（自动检查则完全静默） */
+    private fun checkForUpdatesManually() {
+        if (checkingDialog?.isShowing == true) return
+
+        val token = ++updateCheckToken
+        checkingDialog = UpdateDialogs.showChecking(this) {
+            // 用户取消等待：让这次请求的回调作废，避免关掉对话框后又弹结果
+            updateCheckToken++
+            checkingDialog = null
+        }
+
+        UpdateChecker.check(this) { result ->
+            if (token != updateCheckToken) return@check
+            if (isFinishing || isDestroyed) return@check
+            checkingDialog?.dismiss()
+            checkingDialog = null
+
+            when (result) {
+                is UpdateChecker.CheckResult.Update ->
+                    showUpdateFound(result.release, result.currentVersion)
+                is UpdateChecker.CheckResult.UpToDate ->
+                    toast(getString(R.string.update_already_latest, result.currentVersion))
+                is UpdateChecker.CheckResult.Failed ->
+                    toast(getString(updateFailureMessage(result.reason)))
+            }
+        }
+    }
+
+    private fun updateFailureMessage(reason: UpdateChecker.FailureReason): Int = when (reason) {
+        UpdateChecker.FailureReason.NETWORK -> R.string.update_check_failed
+        UpdateChecker.FailureReason.NO_APK -> R.string.update_check_no_apk
+        UpdateChecker.FailureReason.INVALID_RELEASE -> R.string.update_check_invalid_release
+        UpdateChecker.FailureReason.INVALID_LOCAL_VERSION -> R.string.update_check_unsupported
+    }
+
+    private fun showUpdateFound(release: UpdateChecker.ReleaseInfo, currentVersion: String) {
+        if (isFinishing || isDestroyed) return
+        updateDialog?.dismiss()
+        updateDialog = UpdateDialogs.showUpdate(
+            activity = this,
+            release = release,
+            currentVersion = currentVersion,
+            onDownload = {
+                updateDialog = null
+                startUpdateDownload(release)
+            },
+            onLater = {
+                updateDialog = null
+                // 自动检查不再为这个版本打扰；手动检查仍然会提示
+                UpdateChecker.markSkipped(this, release.version)
+            }
+        )
+    }
+
+    private fun startUpdateDownload(release: UpdateChecker.ReleaseInfo) {
+        // 同一版本已经下载并校验过 → 直接安装，别重复下 2MB
+        val existing = UpdateDownloader.existingApk(this, release.version)
+        if (existing != null && UpdateInstaller.validateApk(this, existing, release.version)) {
+            pendingInstallApk = existing
+            requestInstallNow(existing)
+            return
+        }
+        existing?.delete()
+
+        if (UpdateDownloader.isRunning()) {
+            toast(getString(R.string.update_download_in_progress))
+            return
+        }
+
+        downloadingVersion = release.version
+        if (!UpdateDownloader.start(this, release, updateDownloadListener)) {
+            downloadingVersion = null
+            toast(getString(R.string.update_download_in_progress))
+            return
+        }
+
+        downloadProgressDialog = UpdateDialogs.showDownloadProgress(this) {
+            downloadProgressDialog = null
+            UpdateDownloader.cancel()
+        }
+    }
+
+    /**
+     * 下载回调都在主线程。Activity 已销毁时监听已在 onDestroy detach，
+     * 这里再判一次是为了防回调与销毁交错的瞬间。
+     */
+    private val updateDownloadListener = UpdateDownloader.Listener { event ->
+        if (isFinishing || isDestroyed) return@Listener
+        when (event) {
+            is UpdateDownloader.Event.Progress ->
+                downloadProgressDialog?.update(event.received, event.total)
+
+            is UpdateDownloader.Event.Done -> {
+                downloadProgressDialog?.dismiss()
+                downloadProgressDialog = null
+                val version = downloadingVersion
+                downloadingVersion = null
+                if (version == null || !UpdateInstaller.validateApk(this, event.file, version)) {
+                    event.file.delete()
+                    toast(getString(R.string.update_invalid_apk))
+                    return@Listener
+                }
+                pendingInstallApk = event.file
+                if (!lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                    toast(getString(R.string.update_install_waiting))
+                    return@Listener
+                }
+                requestInstallNow(event.file)
+            }
+
+            is UpdateDownloader.Event.Failed -> {
+                downloadProgressDialog?.dismiss()
+                downloadProgressDialog = null
+                downloadingVersion = null
+                val message = when (event.reason) {
+                    UpdateDownloader.Reason.SIZE_MISMATCH,
+                    UpdateDownloader.Reason.HASH_MISMATCH -> R.string.update_download_bad_apk
+                    else -> R.string.update_download_failed
+                }
+                toast(getString(message))
+            }
+
+            UpdateDownloader.Event.Cancelled -> {
+                downloadProgressDialog?.dismiss()
+                downloadProgressDialog = null
+                downloadingVersion = null
+                toast(getString(R.string.update_download_cancelled))
+            }
+        }
+    }
+
+    /**
+     * 调起安装。API 26+ 先确认「安装未知应用」权限；没有权限时解释并跳设置页，
+     * 返回后由 installPermissionLauncher 重新检查（设置页的 resultCode 不可信）。
+     */
+    private fun requestInstallNow(file: File) {
+        if (!file.isFile || file.length() <= 0) {
+            pendingInstallApk = null
+            return
+        }
+
+        if (UpdateInstaller.needsUnknownSourcesPermission(this)) {
+            if (installPermissionDialog?.isShowing == true) return
+            installPermissionDialog = UpdateDialogs.showInstallPermission(
+                activity = this,
+                onOpenSettings = {
+                    installPermissionDialog = null
+                    waitingForInstallPermission = true
+                    val launched = runCatching {
+                        installPermissionLauncher.launch(
+                            UpdateInstaller.unknownSourcesSettingsIntent(this)
+                        )
+                    }.isSuccess
+                    if (!launched) {
+                        waitingForInstallPermission = false
+                        pendingInstallApk = null
+                        toast(getString(R.string.update_install_failed))
+                    }
+                },
+                onDecline = {
+                    installPermissionDialog = null
+                    pendingInstallApk = null
+                }
+            )
+            return
+        }
+
+        pendingInstallApk = null
+        if (!UpdateInstaller.install(this, file)) {
+            toast(getString(R.string.update_install_failed))
         }
     }
 
@@ -1265,10 +1544,20 @@ class MainActivity : AppCompatActivity(),
         imm.hideSoftInputFromWindow(view.windowToken, 0)
     }
 
-    /** 仅当 Intent 带的是真正的网址（外部 App 调起）时才返回它 */
+    /**
+     * 外部 ACTION_VIEW 带来的地址：网页，或本地 HTML 文件。
+     *
+     * 本地文件统一转成 WebView 能加载的 `file://` 地址（content:// 先复制到缓存）；
+     * 不是这两种的一律返回 null，交给首页兜底。
+     */
     private fun externalUrlFrom(i: Intent?): String? {
         val data = i?.data ?: return null
-        return if (UrlHelper.isHttpUrl(data)) data.toString() else null
+        if (UrlHelper.isHttpUrl(data)) return data.toString()
+        if (!LocalFileOpener.isHtmlFile(this, data, i.type)) return null
+        return LocalFileOpener.prepare(this, data) ?: run {
+            toast(getString(R.string.toast_open_file_failed))
+            null
+        }
     }
 
     private fun toast(text: String) = Toast.makeText(this, text, Toast.LENGTH_SHORT).show()
@@ -1277,6 +1566,7 @@ class MainActivity : AppCompatActivity(),
         private const val KEY_URL = "tab_url"
         private const val KEY_WEBVIEW_STATE = "tab_webview_state"
         private const val KEY_SCROLL_Y = "tab_scroll_y"
+        private const val KEY_PENDING_UPDATE_APK = "pending_update_apk"
 
         /** 开新标签时用来传真正要加载的网址（data 留给了标签标识） */
         const val EXTRA_URL = "extra_url"

@@ -143,6 +143,11 @@ Blauser 让页面按 1280px（或你指定的宽度）正常排版 —— 该并
 ### 系统集成
 
 - 注册为系统默认浏览器，其他 App 点链接可以直接用这个打开（会开新标签，不打断当前页面）
+- 注册为本地 HTML 文件的打开方式：在文件管理器里点 `.html` / `.htm` / `.xhtml`
+  文件时可以选择用本 App 打开。`file://` 与 Android 7+ 的 `content://` 都支持
+  （后者会先复制到应用缓存，再按本地文件加载）
+- 应用内检查更新：悬浮球菜单里有「检查更新」，每天首次启动时也会静默检查一次
+  GitHub Releases；发现新版本后可下载 APK 并调起系统安装器
 
 ### 更多截图
 
@@ -276,8 +281,12 @@ Gradle 用仓库自带的 wrapper 即可，不需要另装。
 
 - **混合内容**用 `MIXED_CONTENT_COMPATIBILITY_MODE`：放行 http 图片等被动资源，
   但拦下 http 脚本
-- **`allowFileAccess` / `allowContentAccess` 关闭**：地址栏已经只放行
-  `file:///android_asset/`，但 API 30 以下这两项默认是 true，多一道防线
+- **`allowFileAccess` 默认关闭，仅本地 HTML 标签页临时打开**：地址栏仍然不放行
+  任意 `file://` 输入；打开本地 HTML 时需要读同目录的 CSS / 图片，所以只跟着主文档
+  地址开关（跳到网页立即收回）。`allowContentAccess` 保持关闭
+- **更新包只接受 GitHub Releases 的 https 地址**：重定向每一跳都要求 https；
+  下载后校验包名、版本号和 versionCode，release 提供 SHA-256 时还会校验摘要；
+  签名一致性交给系统安装器（覆盖安装时签名不符会被拒绝）
 - **外部协议跳转要求用户手势**：没有手势的 `weixin://` / `intent://` 跳转一律拦下 ——
   网页静默拉起 App 是最常见的骚扰与诱导手段（Chrome 同样策略）。
   弹窗（`window.open`）也只放行用户点出来的
@@ -409,6 +418,8 @@ curl -s http://localhost:9222/json    # 每个标签页是一个独立的 page t
 - [x] 按域名覆盖设置
 - [x] 无效证书自己说了算（拒绝 / 继续访问并永久记住，按域名 + 指纹记，可撤销）
 - [x] 添加书签、多标签页、标签出现在系统最近任务中
+- [x] 打开本地 HTML 文件（注册为 `.html` / `.htm` 的系统打开方式）
+- [x] 应用内检查更新 / 下载 APK 升级（GitHub Releases，每天启动时自动检查一次）
 
 ## 不在计划内
 

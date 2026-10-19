@@ -47,6 +47,12 @@ object UrlHelper {
 
     fun isHttpScheme(scheme: String?): Boolean = scheme == "http" || scheme == "https"
 
+    /**
+     * 本地文件地址。只有这类页面才需要给 WebView 打开 allowFileAccess，
+     * 用来读 HTML 旁边的相对资源（CSS / 图片）；普通网页一律保持关闭。
+     */
+    fun isFileUrl(url: String?): Boolean = url?.startsWith("file:", true) == true
+
     fun isWebUrl(url: String?): Boolean {
         val u = url?.trim().orEmpty()
         return u.startsWith("http://", true) || u.startsWith("https://", true)

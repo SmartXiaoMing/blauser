@@ -69,6 +69,7 @@ class FloatingBallView(
         ADD_SHORTCUT,
         SITE_SETTINGS,
         SETTINGS,
+        CHECK_UPDATE,
         DEVTOOLS
     }
 
@@ -156,6 +157,7 @@ class FloatingBallView(
         MenuRow(MenuAction.SITE_SETTINGS, R.drawable.ic_settings, R.string.menu_site_settings,
             dividerBefore = true, enabledWhen = { needsPage(it) }),
         MenuRow(MenuAction.SETTINGS, R.drawable.ic_settings, R.string.menu_settings),
+        MenuRow(MenuAction.CHECK_UPDATE, R.drawable.ic_update, R.string.menu_check_update),
         MenuRow(MenuAction.DEVTOOLS, R.drawable.ic_devtools, R.string.menu_devtools),
     )
 

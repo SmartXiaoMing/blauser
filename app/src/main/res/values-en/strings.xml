@@ -22,6 +22,7 @@
     <string name="action_reload_now">Reload now</string>
     <string name="action_later">Later</string>
     <string name="action_clear_all">Clear all</string>
+    <string name="toast_open_file_failed">Couldn\'t read this file</string>
 
     <!-- ==================== New tab page ==================== -->
     <string name="hint_url">Enter a URL or search</string>
@@ -48,6 +49,7 @@
     <string name="menu_add_shortcut">Add to home screen</string>
     <string name="menu_site_settings">Site settings</string>
     <string name="menu_settings">Global settings</string>
+    <string name="menu_check_update">Check for updates</string>
     <string name="menu_devtools">Inspect element</string>
     <string name="menu_history">History</string>
     <string name="menu_incognito">New incognito tab</string>
@@ -200,6 +202,32 @@
     <string name="download_failed">Download failed</string>
     <string name="download_unsupported">This kind of link (%1$s) can\'t be downloaded yet</string>
     <string name="download_permission_needed">Storage permission is needed to save to the Downloads folder</string>
+
+    <!-- ==================== Update check ==================== -->
+    <string name="update_checking">Checking for updates…</string>
+    <string name="update_check_failed">Couldn\'t check for updates. Try again later.</string>
+    <string name="update_check_no_apk">This release has no APK attached.</string>
+    <string name="update_check_invalid_release">This release\'s version couldn\'t be understood.</string>
+    <string name="update_check_unsupported">The installed version couldn\'t be read, so updates can\'t be checked.</string>
+    <string name="update_already_latest">You\'re on the latest version (%1$s)</string>
+    <string name="update_dialog_title">New version %1$s available</string>
+    <string name="update_dialog_message">Current version %1$s → new version %2$s\n\n%3$s</string>
+    <string name="update_notes_empty">No release notes were provided.</string>
+    <string name="action_download_install">Download and install</string>
+    <string name="action_go_settings">Go to settings</string>
+    <string name="update_download_title">Downloading update</string>
+    <string name="update_download_progress">Downloading… %1$d%%</string>
+    <string name="update_download_unknown_progress">Downloading…</string>
+    <string name="update_download_failed">Download failed. Try again later.</string>
+    <string name="update_download_bad_apk">The downloaded file isn\'t a valid APK.</string>
+    <string name="update_download_cancelled">Download cancelled.</string>
+    <string name="update_download_in_progress">An update is already downloading.</string>
+    <string name="update_install_permission_title">Allow app installs</string>
+    <string name="update_install_permission_message">To install the update, allow blauser to install unknown apps. Tap \"Go to settings\", turn it on, then come back.</string>
+    <string name="update_install_permission_denied">Install permission wasn\'t granted, so the update can\'t be installed.</string>
+    <string name="update_install_failed">Couldn\'t open the installer.</string>
+    <string name="update_install_waiting">Download complete. Return to blauser to finish installing.</string>
+    <string name="update_invalid_apk">The update package is invalid or doesn\'t match this version.</string>
 
     <!-- ==================== Permissions ==================== -->
     <string name="permission_denied">Permission denied — the site can\'t use this feature</string>
